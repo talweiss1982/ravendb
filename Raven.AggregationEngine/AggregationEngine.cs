@@ -44,9 +44,9 @@ namespace Raven.AggregationEngine
 				_events = Storage.CreateTree(tx, EventsKey);
 				_tags = Storage.CreateTree(tx, TagsKey);
 				_aggregations = Storage.CreateTree(tx, AggregationKey);
-				
+
 				Storage.CreateTree(tx, AggregationStatusKey);
-			
+
 				_lastKey = ReadLastKey(tx);
 				ReadAllAggregations(tx);
 
@@ -133,7 +133,7 @@ namespace Raven.AggregationEngine
 				Storage.CreateTree(tx, indexDefinition.Name);
 
 				aggregator = new Aggregator(tx, this, indexDefinition.Name, generator);
-			
+
 				tx.Commit();
 			}
 
@@ -203,7 +203,7 @@ namespace Raven.AggregationEngine
 			using (var snapshot = Storage.CreateSnapshot())
 			using (var it = snapshot.Iterate(EventsKey))
 			{
-				var key = new Slice(BitConverter.GetBytes(after));
+				var key = new Slice(BitConverter.GetBytes(after + 1));
 				if (it.Seek(key) == false)
 					yield break;
 				do
@@ -227,7 +227,7 @@ namespace Raven.AggregationEngine
 			using (var snapshot = Storage.CreateSnapshot())
 			using (var it = snapshot.MultiRead(TagsKey, tag))
 			{
-				var key = new Slice(BitConverter.GetBytes(after));
+				var key = new Slice(BitConverter.GetBytes(after + 1));
 				if (it.Seek(key) == false)
 					yield break;
 				do
@@ -241,7 +241,7 @@ namespace Raven.AggregationEngine
 						var token = RavenJToken.ReadFrom(new JsonTextReader(new StreamReader(readResult.Stream)));
 						yield return new EventData
 						{
-							Data = (RavenJObject) token,
+							Data = (RavenJObject)token,
 							Key = it.CurrentKey.ToInt64()
 						};
 					}
