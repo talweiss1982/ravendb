@@ -227,7 +227,7 @@ namespace Raven.AggregationEngine
 		public IEnumerable<EventData> EventsByTag(string tag, long after)
 		{
 			using (var snapshot = Storage.CreateSnapshot())
-			using (var it = snapshot.MulitRead(TagsKey, tag))
+			using (var it = snapshot.MultiRead(TagsKey, tag))
 			{
 				var key = new Slice(BitConverter.GetBytes(after));
 				if (it.Seek(key) == false)
