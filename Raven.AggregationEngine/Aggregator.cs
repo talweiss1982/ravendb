@@ -34,22 +34,18 @@ namespace Raven.AggregationEngine
 		private volatile bool _disposed;
 		private AggregateException _aggregateException;
 		private readonly Slice _nameKey;
-		private Tree _results;
 
 
-		public Aggregator(AggregationEngine aggregationEngine, string name, AbstractViewGenerator generator)
+		public Aggregator(Transaction tx, AggregationEngine aggregationEngine, string name, AbstractViewGenerator generator)
 		{
 			_aggregationEngine = aggregationEngine;
 			_name = name;
 			_nameKey = name;
 			_generator = generator;
 
-
-			using (var snapshot = aggregationEngine.Storage.CreateSnapshot())
-			using (var result = snapshot.Read(AggregationEngine.AggregationStatusKey, _nameKey))
+			var aggregationStatus = aggregationEngine.Storage.GetTree(tx, AggregationEngine.AggregationStatusKey);
+			using (var result = aggregationStatus.Read(tx, _nameKey))
 			{
-				_results = aggregationEngine.Storage.GetTree(snapshot.Transaction, name);
-
 				if (result == null)
 				{
 					_lastAggregatedEtag = 0;

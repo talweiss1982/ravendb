@@ -44,13 +44,9 @@ namespace Raven.AggregationEngine
 				_events = Storage.CreateTree(tx, EventsKey);
 				_tags = Storage.CreateTree(tx, TagsKey);
 				_aggregations = Storage.CreateTree(tx, AggregationKey);
+				
 				Storage.CreateTree(tx, AggregationStatusKey);
-
-				tx.Commit();
-			}
-
-			using (var tx = Storage.NewTransaction(TransactionFlags.ReadWrite))
-			{
+			
 				_lastKey = ReadLastKey(tx);
 				ReadAllAggregations(tx);
 
@@ -105,7 +101,7 @@ namespace Raven.AggregationEngine
 							continue;
 						}
 						Storage.CreateTree(tx, indexDefinition.Name);
-						var aggregator = new Aggregator(this, indexDefinition.Name, generator);
+						var aggregator = new Aggregator(tx, this, indexDefinition.Name, generator);
 						_aggregationInstances.TryAdd(indexDefinition.Name, aggregator);
 						Background.Work(aggregator.StartAggregation);
 					}
@@ -130,15 +126,17 @@ namespace Raven.AggregationEngine
 			var dynamicViewCompiler = new DynamicViewCompiler(indexDefinition.Name, indexDefinition, Path.Combine(_path, "Generators"));
 			var generator = dynamicViewCompiler.GenerateInstance();
 
+			Aggregator aggregator;
 			using (var tx = Storage.NewTransaction(TransactionFlags.ReadWrite))
 			{
 				_aggregations.Add(tx, indexDefinition.Name, SmallObjectToMemoryStream(indexDefinition));
 				Storage.CreateTree(tx, indexDefinition.Name);
+
+				aggregator = new Aggregator(tx, this, indexDefinition.Name, generator);
+			
 				tx.Commit();
 			}
 
-
-			var aggregator = new Aggregator(this, indexDefinition.Name, generator);
 			_aggregationInstances.AddOrUpdate(indexDefinition.Name, aggregator, (s, viewGenerator) => aggregator);
 			Background.Work(aggregator.StartAggregation);
 		}
