@@ -27,7 +27,7 @@ namespace Raven.AggregationEngine.Tests
 				{
 					for (int i = 0; i < 15; i++)
 					{
-						last = await agg.AppendAsync("test", new[]{"a"},new RavenJObject { { "Item", i } });
+						last = await agg.AppendAsync(new RavenJObject { { "Item", i } });
 					}
 
 					var aggregation = agg.GetAggregation("test");
@@ -66,7 +66,7 @@ namespace Raven.AggregationEngine.Tests
 						long lastWrite = 0;
 						for (int i = 0; i < 15; i++)
 						{
-							lastWrite = await agg.AppendAsync("test", new[] { "a" }, new RavenJObject { { "Item", i } });
+							lastWrite = await agg.AppendAsync(new RavenJObject { { "Item", i } });
 						}
 
 

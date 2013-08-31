@@ -29,7 +29,6 @@ namespace Raven.AggregationEngine
 		private long _lastKey;
 
 		private readonly AsyncEvent _appendEvent = new AsyncEvent();
-		private readonly Tree _tags;
 		private readonly Tree _events;
 		private readonly Tree _aggregations;
 
@@ -42,7 +41,7 @@ namespace Raven.AggregationEngine
 			using (var tx = Storage.NewTransaction(TransactionFlags.ReadWrite))
 			{
 				_events = Storage.CreateTree(tx, EventsKey);
-				_tags = Storage.CreateTree(tx, TagsKey);
+				Storage.CreateTree(tx, TagsKey);
 				_aggregations = Storage.CreateTree(tx, AggregationKey);
 
 				Storage.CreateTree(tx, AggregationStatusKey);
@@ -163,18 +162,16 @@ namespace Raven.AggregationEngine
 			return value;
 		}
 
-		public Task<long> AppendAsync(string topic, string[] tags, params RavenJObject[] items)
+		public Task<long> AppendAsync(params RavenJObject[] items)
 		{
-			return AppendAsync(topic, tags, (IEnumerable<RavenJObject>)items);
+			return AppendAsync((IEnumerable<RavenJObject>)items);
 		}
 
-		public async Task<long> AppendAsync(string topic, string[] tags, IEnumerable<RavenJObject> items)
+		public async Task<long> AppendAsync(IEnumerable<RavenJObject> items)
 		{
 			if (items == null) throw new ArgumentNullException("items");
 
 			var batch = new WriteBatch();
-
-			var tagsAsKeys = tags.Select(s => (Slice)s).ToArray();
 
 
 			long key = 0;
@@ -183,13 +180,16 @@ namespace Raven.AggregationEngine
 				RavenJToken metadata;
 				if (item.TryGetValue("@metadata", out metadata) == false)
 					item["@metadata"] = metadata = new RavenJObject();
-				((RavenJObject)metadata)["Raven-Entity-Name"] = topic;
 				key = Interlocked.Increment(ref _lastKey);
 				var eventKey = new Slice(BitConverter.GetBytes(key));
 				batch.Add(eventKey, RavenJTokenToStream(item), EventsKey);
-				foreach (var tag in tagsAsKeys)
+				var tags = metadata.Value<RavenJArray>("Raven-Tags");
+				if (tags != null)
 				{
-					batch.MultiAdd(tag, eventKey, TagsKey);
+					foreach (var tag in tags)
+					{
+						batch.MultiAdd(tag.Value<string>(), eventKey, TagsKey);
+					}
 				}
 			}
 

@@ -15,7 +15,7 @@ namespace Raven.AggregationEngine.Tests
 			{
 				for (int i = 0; i < 15; i++)
 				{
-					await agg.AppendAsync("test", new[] { "a" }, new RavenJObject { { "Item", i } });
+					await agg.AppendAsync(new RavenJObject { { "Item", i } });
 				}
 			}
 		}
@@ -30,7 +30,7 @@ namespace Raven.AggregationEngine.Tests
 				{
 					for (int i = 0; i < 15; i++)
 					{
-						await agg.AppendAsync("test", new[] { "a" }, new RavenJObject {{"Item", i}});
+						await agg.AppendAsync(new RavenJObject {{"Item", i}});
 					}
 
 					Assert.NotEqual(0, agg.LastKey);
@@ -55,7 +55,7 @@ namespace Raven.AggregationEngine.Tests
 				var tasks = new List<Task>();
 				for (int i = 0; i < 15; i++)
 				{
-					tasks.Add(agg.AppendAsync("test", new[] { "a" }, new RavenJObject { { "Item", i } }));
+					tasks.Add(agg.AppendAsync(new RavenJObject { { "Item", i } }));
 				}
 				await Task.WhenAll(tasks);
 				await agg.DisposeAsync();
@@ -69,7 +69,7 @@ namespace Raven.AggregationEngine.Tests
 			{
 				for (int i = 0; i < 15; i++)
 				{
-					await agg.AppendAsync("test", new[] { "a" }, new RavenJObject { { "Val", i } });
+					await agg.AppendAsync(new RavenJObject { { "Val", i } });
 				}
 
 				int j = 0;

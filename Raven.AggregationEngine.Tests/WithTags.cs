@@ -22,7 +22,11 @@ namespace Raven.AggregationEngine.Tests
 				{
 					for (int j = 0; j < 3; j++)
 					{
-						await agg.AppendAsync("test", new[] {"user/" + i}, new RavenJObject {{"Item", i}});
+						await agg.AppendAsync(new RavenJObject
+						{
+							{"Item", i},
+							{"@metadata", new RavenJObject {{"Raven-Tags", new RavenJArray {"user/" + i}}}}
+						});
 					}
 				}
 

@@ -32,8 +32,9 @@ namespace Raven.AggregationEngine.Tests
 
 				for (int i = 0; i < 50; i++)
 				{
-					await agg.AppendAsync("Sms", new[] { "a" }, new RavenJObject
+					await agg.AppendAsync(new RavenJObject
 						{
+							{"@metadata", new RavenJObject{{"Raven-Entity-Name", "Sms"}}},
 							{"From", "1234"},
 							{"At", new DateTime(2013, 6, 19).AddDays(i).ToString("o")}
 						});
@@ -41,8 +42,10 @@ namespace Raven.AggregationEngine.Tests
 
 				for (int i = 0; i < 70; i++)
 				{
-					await agg.AppendAsync("Calls", new[] { "a" }, new RavenJObject
+					await agg.AppendAsync(
+						new RavenJObject
 						{
+							{"@metadata", new RavenJObject{{"Raven-Entity-Name", "Calls"}}},
 							{"From", "1234"},
 							{"At", new DateTime(2013, 6, 19).AddDays(i).ToString("o")},
 							{"Duration", TimeSpan.FromSeconds(i+4).ToString()}
