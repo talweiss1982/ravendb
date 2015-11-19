@@ -34,6 +34,9 @@ namespace Rachis.Behaviors
 
         public override void HandleTimeout()
         {
+            if (_log.IsDebugEnabled)
+                _log.Debug("Candidate Handle Timeout Called, Id: {0}", Engine.Name);
+
             _log.Info("Timeout ({1:#,#;;0} ms) for elections in term {0}", Engine.PersistentState.CurrentTerm,
                   Timeout);
 

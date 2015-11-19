@@ -26,6 +26,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
+using Raven.Abstractions.Logging;
 using Xunit;
 
 namespace Raven.Tests.Raft
@@ -35,7 +37,12 @@ namespace Raven.Tests.Raft
         private const int PortRangeStart = 9000;
 
         private static int numberOfPortRequests;
+        private ILog _logger;
 
+        public RaftTestBase()
+        {
+            _logger = LogManager.GetLogger("RaftTest." + GetType().FullName);
+        }
         internal static int GetPort()
         {
             var portRequest = Interlocked.Increment(ref numberOfPortRequests);
@@ -78,10 +85,18 @@ namespace Raven.Tests.Raft
 
         public List<DocumentStore> CreateRaftCluster(int numberOfNodes, string activeBundles = null, Action<DocumentStore> configureStore = null, [CallerMemberName] string databaseName = null, bool inMemory = true)
         {
-            var nodes = Enumerable.Range(0, numberOfNodes)
-                .Select(x => GetNewServer(GetPort(), activeBundles: activeBundles, databaseName: databaseName, runInMemory:inMemory))
-                .ToList();
+            var nodes = new List<RavenDbServer>();
+            _logger.Info("Starting creating {0} Nodes", numberOfNodes);
+            Parallel.For(0, numberOfNodes, x =>
+            {
+                var ravenDbServer = GetNewServer(GetPort(), activeBundles: activeBundles, databaseName: databaseName, runInMemory: inMemory);
+                lock (nodes)
+                {
+                    nodes.Add(ravenDbServer);
+                }
+            });
 
+            _logger.Info("{0} Nodes Created", numberOfNodes);
             var allNodesFinishedJoining = new ManualResetEventSlim();
 
             var random = new Random();
@@ -90,9 +105,10 @@ namespace Raven.Tests.Raft
             Console.WriteLine("Leader: " + leader.Options.ClusterManager.Value.Engine.Options.SelfConnection.Uri);
 
             leader.Options.ClusterManager.Value.InitializeTopology();
-
+            //leader.Options.ClusterManager.Value.Engine.CurrentLeader = leader.Options.ClusterManager.Value.Engine.Name;
+            _logger.Info("Leader Topology Initialized, leader is: {0}", leader.Options.ClusterManager.Value.Engine.CurrentLeader);
             Assert.True(leader.Options.ClusterManager.Value.Engine.WaitForLeader());
-
+            _logger.Info("Finished Waiting for leader, leader is: {0}", leader.Options.ClusterManager.Value.Engine.CurrentLeader);
             leader.Options.ClusterManager.Value.Engine.TopologyChanged += command =>
             {
                 if (command.Requested.AllNodeNames.All(command.Requested.IsVoter))
@@ -117,10 +133,10 @@ namespace Raven.Tests.Raft
 
             if (numberOfNodes == 1)
                 allNodesFinishedJoining.Set();
-
-            Assert.True(allNodesFinishedJoining.Wait(10000 * numberOfNodes), "Not all nodes become voters. " + leader.Options.ClusterManager.Value.Engine.CurrentTopology);
+            _logger.Info("Starting waiting to clusters being added");
+            Assert.True(allNodesFinishedJoining.Wait(100000 * numberOfNodes), "Not all nodes become voters. " + leader.Options.ClusterManager.Value.Engine.CurrentTopology);
             Assert.True(leader.Options.ClusterManager.Value.Engine.WaitForLeader());
-
+            _logger.Info("Waiting to clusters being added finished");
             WaitForClusterToBecomeNonStale(nodes);
 
             return nodes

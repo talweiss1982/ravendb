@@ -79,6 +79,8 @@ namespace Rachis.Behaviors
 
         public override void HandleTimeout()
         {
+            if (_log.IsDebugEnabled)
+                _log.Debug("SteppingDown Handle Timout Called, Id: {0}", Engine.Name);
             base.HandleTimeout();
             if (_stepdownDuration.Elapsed > Engine.Options.MaxStepDownDrainTime)
             {

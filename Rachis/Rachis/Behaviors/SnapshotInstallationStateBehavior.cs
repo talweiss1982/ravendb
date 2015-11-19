@@ -158,6 +158,8 @@ namespace Rachis.Behaviors
 
         public override void HandleTimeout()
         {
+            if (_log.IsDebugEnabled)
+                _log.Debug("SnapshotInstallation Handle Timout Called, Id: {0}", Engine.Name);
             Timeout = _random.Next(Engine.Options.ElectionTimeout / 2, Engine.Options.ElectionTimeout);
             LastHeartbeatTime = DateTime.UtcNow;// avoid busy loop while waiting for the snapshot
             _log.Info("Received timeout during installation of a snapshot. Doing nothing, since the node should finish receiving snapshot before it could change into candidate");

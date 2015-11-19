@@ -56,13 +56,19 @@ namespace Rachis.Behaviors
 
         private void OnTopologyChanged(TopologyChangeCommand tcc)
         {
-            // if we have any removed servers, we need to know let them know that they have
+            // if we have any removed servers, we need to now let them know that they have
             // been removed, we do that by committing the current entry (hopefully they already
             // have topology change command, so they know they are being removed from the cluster).
             // This is mostly us being nice neighbors, this isn't required, and the cluster will reject
             // messages from nodes not considered to be in the cluster.
             if (tcc.Previous == null)
+            {
+                if (_log.IsDebugEnabled)
+                    _log.Debug("OnTopologyChanged skipped, due to first run");
                 return;
+            }
+
+            heartbeatMre.Set();
 
             var removedNodes = tcc.Previous.AllNodeNames.Except(tcc.Requested.AllNodeNames).ToList();
             foreach (var removedNode in removedNodes)
@@ -91,15 +97,24 @@ namespace Rachis.Behaviors
                     if (peer.Name.Equals(Engine.Name, StringComparison.OrdinalIgnoreCase))
                         continue;// we don't need to send to ourselves
 
+                    if (_log.IsDebugEnabled)
+                        _log.Debug("HeartBeat sent from {0} to {1}", Engine.Name, peer.Name);
+
                     _stopHeartbeatCancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                     SendEntriesToPeer(peer);
                 }
 
                 OnHeartbeatSent();
-                Thread.Sleep(Engine.Options.HeartbeatTimeout);
+                if (_log.IsDebugEnabled)
+                    _log.Debug("HeartBeat going to sleep for {0}", Engine.Options.HeartbeatTimeout);
+                //Thread.Sleep(Engine.Options.HeartbeatTimeout);
+
+                heartbeatMre.WaitOne(Engine.Options.HeartbeatTimeout);
             }
         }
+
+        readonly AutoResetEvent heartbeatMre = new AutoResetEvent(false);
 
         private void SendEntriesToPeer(NodeConnectionInfo peer)
         {
@@ -209,6 +224,9 @@ namespace Rachis.Behaviors
 
         public override void HandleTimeout()
         {
+            if (_log.IsDebugEnabled)
+                _log.Debug("Leader Handle Timeout Called, Id: {0}", Engine.Name);
+
             _lastContact[Engine.Name] = DateTime.UtcNow;
             if (Engine.CurrentTopology.QuorumSize == 1)
             {
@@ -357,7 +375,10 @@ namespace Rachis.Behaviors
             // there is a new leader in town, time to step down
             if (resp.CurrentTerm > Engine.PersistentState.CurrentTerm)
             {
+                if (_log.IsDebugEnabled)
+                    _log.Debug("Node {0} is on term {1} which is lower then {2} received from {3}", this.Engine.Name, Engine.PersistentState.CurrentTerm, resp.CurrentTerm, resp.From);
                 Engine.UpdateCurrentTerm(resp.CurrentTerm, resp.LeaderId);
+                
                 return;
             }
 

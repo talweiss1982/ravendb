@@ -161,7 +161,7 @@ namespace Rachis.Behaviors
         {
             Engine = engine;
             LastHeartbeatTime = DateTime.UtcNow;
-            _log = LogManager.GetLogger(engine.Name + "." + GetType().Name);
+            _log = LogManager.GetLogger(engine.Name + "." + GetType().FullName);
 
             _actionDispatch = new Dictionary<Type, Action<MessageContext>>
             {
@@ -218,7 +218,7 @@ namespace Rachis.Behaviors
             if (State == RaftEngineState.Follower && req.ForcedElection == false &&
                 (timeSinceLastHeartbeat < halfTimeout) && Engine.CurrentLeader != null)
             {
-                _log.Info("Received RequestVoteRequest from a node within election timeout while leader exists, rejecting " );
+                _log.Info("Received RequestVoteRequest from a {0}, which is a node within election timeout while leader exists, rejecting " , req.From);
                 return new RequestVoteResponse
                 {
                     VoteGranted = false,
@@ -444,11 +444,15 @@ namespace Rachis.Behaviors
 
             if (req.Term > Engine.PersistentState.CurrentTerm)
             {
+                if (_log.IsDebugEnabled)
+                    _log.Debug("Current Term is: {0}, Setting Term to {1}", Engine.PersistentState.CurrentTerm, req.Term);
                 Engine.UpdateCurrentTerm(req.Term, req.From);
             }
 
             if (Engine.CurrentLeader == null || req.From.Equals(Engine.CurrentLeader) == false)
             {
+                if (_log.IsDebugEnabled)
+                    _log.Debug("Current Leader is: {0}, Setting leader to {1}, changing to follower", Engine.CurrentLeader, req.From);
                 Engine.CurrentLeader = req.From;
                 Engine.SetState(RaftEngineState.Follower);
             }
@@ -478,7 +482,7 @@ namespace Rachis.Behaviors
             {
                 if (_log.IsDebugEnabled)
                     _log.Debug("Appending log (persistant state), entries count: {0} (node state = {1})", req.Entries.Length,
-                    Engine.State);
+                        Engine.State);
 
                 if (_log.IsDebugEnabled)
                 {
@@ -525,6 +529,12 @@ namespace Rachis.Behaviors
                     Engine.PersistentState.SetCurrentTopology(topologyChangeCommand.Requested, topologyChange.Index);
                     Engine.StartTopologyChange(topologyChangeCommand);
                 }
+            }
+            else
+            {
+                if (_log.IsDebugEnabled)
+                    _log.Debug("Received empty AppendEntriesRequest from {0}",
+                        req.From);
             }
 
             var lastIndex = req.Entries.Length == 0 ?
