@@ -6,5 +6,9 @@ namespace Rachis.Commands
     {
         public Topology Requested { get; set; }
         public Topology Previous { get; set; }
+        public override string ToString()
+        {
+            return $"TopologyChange Command. Requested: {Requested} \n, Previous: {Previous}";
+        }
     }
 }

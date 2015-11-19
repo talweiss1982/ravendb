@@ -174,28 +174,42 @@ namespace Rachis
                     var timeout = behavior.Timeout - lastHeartBeat;
                     var hasMessage = Transport.TryReceiveMessage(timeout, _eventLoopCancellationTokenSource.Token, out message);
                     if (_eventLoopCancellationTokenSource.IsCancellationRequested)
+                    {
+                        if (_log.IsDebugEnabled)
+                            _log.Debug("Event Loop canceled due to Cancellation Token being fired");
                         break;
+                    }
 
                     if (hasMessage == false)
                     {
                         if (State != RaftEngineState.Leader && _log.IsDebugEnabled)
+                        {
                             _log.Debug("State {0} timeout ({1:#,#;;0} ms).", State, behavior.Timeout);
+                        }
                         behavior.HandleTimeout();
                         OnStateTimeout();
                         continue;
                     }
 
                     if (_log.IsDebugEnabled)
-                        _log.Debug("{0}: {1} {2}", State,
+                        _log.Debug("EventLoop message received: {0}: {1} {2}", State,
                         message.Message.GetType().Name,
                         message.Message is BaseMessage ? JsonConvert.SerializeObject(message.Message) : string.Empty
                         );
 
                     behavior.HandleMessage(message);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException e)
                 {
+                    if (_log.IsDebugEnabled)
+                        _log.Debug("Exception was Thrown in Event loop: {0}", e.Message);
                     break;
+                }
+                catch (Exception e)
+                {
+                    if (_log.IsDebugEnabled)
+                        _log.Debug("Exception was Thrown in Event loop: {0}", e.Message);
+                    throw;
                 }
             }
         }
@@ -417,7 +431,7 @@ namespace Rachis
 
                     Debug.Assert(entry.Index == StateMachine.LastAppliedIndex);
                     if (_log.IsDebugEnabled)
-                        _log.Debug("Committing entry #{0}", entry.Index);
+                        _log.Debug("Committing entry #{0}, command: {1}", entry.Index, command);
 
                     var tcc = command as TopologyChangeCommand;
                     if (tcc != null)

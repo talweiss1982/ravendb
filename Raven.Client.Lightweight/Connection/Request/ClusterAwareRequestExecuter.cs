@@ -28,7 +28,7 @@ namespace Raven.Client.Connection.Request
 {
     public class ClusterAwareRequestExecuter : IRequestExecuter
     {
-        private const int WaitForLeaderTimeoutInSeconds = 30;
+        private const int WaitForLeaderTimeoutInSeconds = 30*1000;
 
         private const int GetReplicationDestinationsTimeoutInSeconds = 2;
 
@@ -149,7 +149,9 @@ namespace Raven.Client.Connection.Request
                         break;
                     default:
                         if (leaderNodeSelected.Wait(TimeSpan.FromSeconds(WaitForLeaderTimeoutInSeconds)) == false)
+                        {
                             throw new InvalidOperationException("Cluster is not reachable. No leader was selected, aborting.");
+                        }
                         break;
                 }
 
@@ -242,6 +244,7 @@ namespace Raven.Client.Connection.Request
             catch (Exception e)
             {
                 bool wasTimeout;
+                operationResult.Error = e;
                 if (HttpConnectionHelper.IsServerDown(e, out wasTimeout))
                 {
                     shouldRetry = true;

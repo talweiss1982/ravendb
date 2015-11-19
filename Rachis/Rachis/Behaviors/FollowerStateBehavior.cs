@@ -30,6 +30,9 @@ namespace Rachis.Behaviors
 
         public override void HandleTimeout()
         {
+            if (_log.IsDebugEnabled)
+                _log.Debug("Follower Handle Timeout Called, Id: {0}", Engine.Name);
+
             LastHeartbeatTime = DateTime.UtcNow;
 
             if (Engine.CurrentTopology.IsVoter(Engine.Name) == false)

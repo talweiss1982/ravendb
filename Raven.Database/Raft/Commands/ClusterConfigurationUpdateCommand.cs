@@ -23,5 +23,10 @@ namespace Raven.Database.Raft.Commands
                        Completion = new TaskCompletionSource<object>()
                    };
         }
+
+        public override string ToString()
+        {
+            return $"ClusterConfigurationUpdate";
+        }
     }
 }
