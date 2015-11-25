@@ -192,10 +192,8 @@ namespace Raven.Bundles.Replication.Tasks
                     runningBecauseOfDataModifications = context.WaitForWork(timeToWait, ref workCounter, name);
 
                     timeToWait = runningBecauseOfDataModifications
-                        ?TimeSpan.FromMilliseconds(0)
-                        : TimeSpan.FromSeconds(15);
-                    /* ? TimeSpan.FromSeconds(30)
-                     : TimeSpan.FromMinutes(5);*/
+                     ? TimeSpan.FromSeconds(30)
+                     : TimeSpan.FromMinutes(5);
                 }
 
                 IsRunning = false;

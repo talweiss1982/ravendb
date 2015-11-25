@@ -5,8 +5,10 @@
 // -----------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Rachis;
 using Rachis.Commands;
 using Rachis.Transport;
@@ -53,7 +55,20 @@ namespace Raven.Database.Raft
 
             clusterManager.Engine.TopologyChanged += HandleTopologyChanges;
             clusterManager.Engine.StateChanged += HandleStateChanges;
+            options.DatabaseLandlord.OnDatabaseLoaded += HandleDatabaseLoaded;
             HandleClusterConfigurationChanges();
+
+        }
+
+        private void HandleDatabaseLoaded(string dbName)
+        {
+            Task.Run(delegate
+            {
+                var db = options.DatabaseLandlord.GetResourceInternal(dbName).GetAwaiter().GetResult();
+                if (db == null) return;
+                var shouldActivate = clusterManager.Engine.State == RaftEngineState.Leader;
+                SetReplicationTaskState(db, shouldActivate);
+            });
         }
 
         private void HandleStateChanges(RaftEngineState state)

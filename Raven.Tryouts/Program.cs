@@ -21,46 +21,18 @@ namespace Raven.Tryouts
     {
         public static void Main(string[] args)
         {
-            var i=2;
-          /*  if (args.Length >= 1)
-            {
-                int.TryParse(args[0], out i);
-            }*/
+            var i=8;
+
             Console.WriteLine(i);
             using (var x = new Test())
             {
                 x.DeleteShouldBePropagated(i);
+                x.Dispose();
             }
             Console.WriteLine("Finishd Running");
-/*            new GrishaDaKing().DisasterCluster();*/
+
         }
 
-        public class GrishaDaKing: RavenReplicationCoreTest
-        {
-            
-            public void DisasterCluster()
-            {
-                this.SetFixture(new TestServerFixture()
-                {
-                });
-                var stores = Enumerable.Range(0, 8).Select(x => GetDocumentStore()).ToList();
-                stores.ForEach(x => x.DatabaseCommands.GlobalAdmin.EnsureDatabaseExists(x.DefaultDatabase));
-
-                foreach (var documentStore in stores)
-                {
-                    SetupReplication(documentStore, stores.Where(x=>x!=documentStore).ToArray());
-                }
-                for (var i=0;  i< stores.Count();i++)
-                {
-                    stores[i].DatabaseCommands.PutAttachment("keys/" + i, null, new MemoryStream(), new RavenJObject());
-                }
-
-                WaitForUserToContinueTheTest(stores.First());
-                
-
-            }
-            
-        }
         public class Test : RaftTestBase
         {
 
@@ -84,7 +56,6 @@ namespace Raven.Tryouts
                     clusterStores.ForEach(store => WaitFor(store.DatabaseCommands.ForDatabase(store.DefaultDatabase, ClusterBehavior.None), commands => commands.Get("keys/" + i) != null));
 #pragma warning restore 618
                 }
-                WaitForUserToContinueTheTest(url: clusterStores[0].Url);
                 //WaitForUserToContinueTheTest(url: stores.First().Url);
                 for (int i = 0; i < clusterStores.Count; i++)
                 {
@@ -101,6 +72,7 @@ namespace Raven.Tryouts
                     clusterStores.ForEach(store => WaitFor(store.DatabaseCommands.ForDatabase(store.DefaultDatabase, ClusterBehavior.None), commands => commands.Get("keys/" + i) == null));
 #pragma warning restore 618
                 }
+                Console.WriteLine("I do get here...");
                 //WaitForUserToContinueTheTest(url: stores.First().Url);
             }
         }

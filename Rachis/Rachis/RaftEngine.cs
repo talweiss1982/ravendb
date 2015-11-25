@@ -248,11 +248,17 @@ namespace Rachis
                     StateBehavior = new FollowerStateBehavior(this, state == RaftEngineState.FollowerAfterStepDown);
                     break;
                 case RaftEngineState.CandidateByRequest:
-                    StateBehavior = new CandidateStateBehavior(this, true);
+                    var candidateState = new CandidateStateBehavior(this, true);
+                    if (StateBehavior is LeaderStateBehavior)
+                        return;
+                    StateBehavior = candidateState;
                     break;
                 case RaftEngineState.Candidate:
-                    StateBehavior = new CandidateStateBehavior(this, false);
+                    candidateState = new CandidateStateBehavior(this, true);                    
                     StateBehavior.HandleTimeout();
+                    if (StateBehavior is LeaderStateBehavior)
+                        return;
+                    StateBehavior = candidateState;
                     break;
                 case RaftEngineState.SnapshotInstallation:
                     StateBehavior = new SnapshotInstallationStateBehavior(this);

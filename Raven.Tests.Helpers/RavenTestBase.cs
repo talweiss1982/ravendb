@@ -892,7 +892,10 @@ namespace Raven.Tests.Helpers
             GC.SuppressFinalize(this);
 
             var errors = new List<Exception>();
-
+            foreach (var server in servers)
+            {
+                server.Options.ClusterManager.Value.Dispose();
+            }
             foreach (var store in stores)
             {
                 try
@@ -958,7 +961,7 @@ namespace Raven.Tests.Helpers
                     }
                 }
             }
-            
+
             if (errors.Count > 0)
                 throw new AggregateException(errors);
         }
