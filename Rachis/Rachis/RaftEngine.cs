@@ -171,8 +171,15 @@ namespace Rachis
                     MessageContext message;
                     var behavior = StateBehavior;
                     var lastHeartBeat = (int)(DateTime.UtcNow - behavior.LastHeartbeatTime).TotalMilliseconds;
+                    var oldHeartBeat = behavior.LastHeartbeatTime;
                     var timeout = behavior.Timeout - lastHeartBeat;
                     var hasMessage = Transport.TryReceiveMessage(timeout, _eventLoopCancellationTokenSource.Token, out message);
+                    var newHeartBeat = behavior.LastHeartbeatTime;
+
+                    if (oldHeartBeat != newHeartBeat && _log.IsDebugEnabled)
+                    {
+                            _log.Debug("Event Loop canceled due to Cancellation Token being fired");
+                    }
                     if (_eventLoopCancellationTokenSource.IsCancellationRequested)
                     {
                         if (_log.IsDebugEnabled)

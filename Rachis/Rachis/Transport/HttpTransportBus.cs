@@ -42,6 +42,8 @@ namespace Rachis.Transport
             if (_queue.TryTake(out item, timeout, cancellationToken) == false)
             {
                 messageContext = null;
+                if (Log.IsDebugEnabled)
+                    Log.Debug($"Failed to recive a message for {_name} within {timeout}ms");
                 return false;
             }
             messageContext = item;

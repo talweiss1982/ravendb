@@ -6,14 +6,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
+using System.Runtime.CompilerServices;
+using Rachis;
 using Rachis.Commands;
 using Rachis.Transport;
-
-using Raven.Abstractions;
 using Raven.Abstractions.Data;
 using Raven.Abstractions.Extensions;
 using Raven.Abstractions.Replication;
+using Raven.Bundles.Replication.Tasks;
 using Raven.Database.Commercial;
 using Raven.Database.Plugins;
 using Raven.Database.Raft.Dto;
@@ -21,7 +21,6 @@ using Raven.Database.Raft.Util;
 using Raven.Database.Server;
 using Raven.Database.Util;
 using Raven.Json.Linq;
-using Raven.Server;
 
 namespace Raven.Database.Raft
 {
@@ -30,6 +29,7 @@ namespace Raven.Database.Raft
         private DocumentDatabase systemDatabase;
 
         private ClusterManager clusterManager;
+        private RavenDBOptions options;
 
         public void Execute(RavenDBOptions serverOptions)
         {
@@ -37,8 +37,9 @@ namespace Raven.Database.Raft
                 return;
 
             systemDatabase = serverOptions.SystemDatabase;
+            serverOptions.DatabaseLandlord.ForAllDatabases(DisableReplicationTask);
             clusterManager = serverOptions.ClusterManager.Value = ClusterManagerFactory.Create(systemDatabase, serverOptions.DatabaseLandlord);
-
+            options = serverOptions;
             systemDatabase.Notifications.OnDocumentChange += (db, notification, metadata) =>
             {
                 if (string.Equals(notification.Id, Constants.Cluster.ClusterConfigurationDocumentKey, StringComparison.OrdinalIgnoreCase))
@@ -51,10 +52,43 @@ namespace Raven.Database.Raft
             };
 
             clusterManager.Engine.TopologyChanged += HandleTopologyChanges;
-
+            clusterManager.Engine.StateChanged += HandleStateChanges;
             HandleClusterConfigurationChanges();
         }
 
+        private void HandleStateChanges(RaftEngineState state)
+        {
+            switch (state)
+            {
+                case RaftEngineState.Leader:
+                    options.DatabaseLandlord.ForAllDatabases(ActivateReplicationTask);
+                    break;
+                default:
+                    options.DatabaseLandlord.ForAllDatabases(DisableReplicationTask);
+                    break;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void DisableReplicationTask(DocumentDatabase db)
+        {
+            SetReplicationTaskState(db, false);
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ActivateReplicationTask(DocumentDatabase db)
+        {
+            SetReplicationTaskState(db, true);
+        }
+
+        private void SetReplicationTaskState(DocumentDatabase db, bool activate)
+        {
+            var replicationTask = db.StartupTasks.OfType<ReplicationTask>().FirstOrDefault();
+            if (replicationTask == null) return;
+            if(activate)
+                replicationTask.Continue();
+            else
+                replicationTask.Pause();
+        }
         private static bool IsValidLicense()
         {
             DevelopmentHelper.TimeBomb();
@@ -76,7 +110,7 @@ namespace Raven.Database.Raft
 
         public void Dispose()
         {
-            if(clusterManager != null)
+            if (clusterManager != null)
                 clusterManager.Engine.TopologyChanged -= HandleTopologyChanges;
         }
 
@@ -91,11 +125,7 @@ namespace Raven.Database.Raft
                 return;
             }
 
-            var removedNodeUrls = command
-                .Previous
-                .AllNodes.Select(x => x.Uri.AbsoluteUri)
-                .Except(command.Requested.AllNodes.Select(x => x.Uri.AbsoluteUri))
-                .ToList();
+            var removedNodeUrls = command.Previous.AllNodes.Select(x => x.Uri.AbsoluteUri).Except(command.Requested.AllNodes.Select(x => x.Uri.AbsoluteUri)).ToList();
 
             HandleClusterConfigurationChanges(removedNodeUrls);
         }
@@ -115,22 +145,13 @@ namespace Raven.Database.Raft
         {
             var currentTopology = clusterManager.Engine.CurrentTopology;
             var replicationDocumentJson = systemDatabase.Documents.Get(Constants.Global.ReplicationDestinationsDocumentName, null);
-            var replicationDocument = replicationDocumentJson != null
-                ? replicationDocumentJson.DataAsJson.JsonDeserialization<ReplicationDocument>()
-                : new ReplicationDocument();
+            var replicationDocument = replicationDocumentJson != null ? replicationDocumentJson.DataAsJson.JsonDeserialization<ReplicationDocument>() : new ReplicationDocument();
 
-            var replicationDocumentNormalizedDestinations = replicationDocument
-                .Destinations
-                .ToDictionary(x => RaftHelper.GetNormalizedNodeUrl(x.Url), x => x);
+            var replicationDocumentNormalizedDestinations = replicationDocument.Destinations.ToDictionary(x => RaftHelper.GetNormalizedNodeUrl(x.Url), x => x);
 
-            var currentTopologyNormalizedDestionations = currentTopology
-                .AllNodes
-                .ToDictionary(x => x.Uri.AbsoluteUri.ToLowerInvariant(), x => x);
+            var currentTopologyNormalizedDestionations = currentTopology.AllNodes.ToDictionary(x => x.Uri.AbsoluteUri.ToLowerInvariant(), x => x);
 
-            var urls = replicationDocumentNormalizedDestinations
-                .Keys
-                .Union(currentTopologyNormalizedDestionations.Keys)
-                .ToList();
+            var urls = replicationDocumentNormalizedDestinations.Keys.Union(currentTopologyNormalizedDestionations.Keys).ToList();
 
             foreach (var url in urls)
             {

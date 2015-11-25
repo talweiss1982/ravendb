@@ -36,6 +36,7 @@ namespace Raven.Database.Raft.Storage
 
         private readonly DocumentDatabase database;
 
+        public readonly DatabasesLandlord Landlord;
         private readonly Dictionary<Type, CommandHandler> handlers = new Dictionary<Type, CommandHandler>();
 
         private long lastAppliedIndex;
@@ -46,7 +47,7 @@ namespace Raven.Database.Raft.Storage
         {
             if (systemDatabase == null)
                 throw new ArgumentNullException("systemDatabase");
-
+            Landlord = databasesLandlord;
             DatabaseHelper.AssertSystemDatabase(systemDatabase);
 
             database = systemDatabase;

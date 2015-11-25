@@ -208,6 +208,10 @@
       <Project>{212823cd-25e1-41ac-92d1-d6df4d53fc85}</Project>
       <Name>Raven.Database</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Raven.Tests.Core\Raven.Tests.Core.csproj">
+      <Project>{93287FBA-732A-4603-9BBE-9CFDC82FC8BE}</Project>
+      <Name>Raven.Tests.Core</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Raven.Tests.FileSystem\Raven.Tests.FileSystem.csproj">
       <Project>{01CA67F3-1E46-455C-8713-86FCCF2EFBC7}</Project>
       <Name>Raven.Tests.FileSystem</Name>

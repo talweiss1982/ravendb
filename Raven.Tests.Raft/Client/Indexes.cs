@@ -15,7 +15,7 @@ using Raven.Bundles.Replication.Tasks;
 using Raven.Client.Connection;
 using Raven.Client.Indexes;
 using Raven.Tests.Common.Dto;
-
+using Xunit;
 using Xunit.Extensions;
 
 namespace Raven.Tests.Raft.Client
@@ -30,10 +30,12 @@ namespace Raven.Tests.Raft.Client
             }
         }
 
-        [Theory]
-        [PropertyData("Nodes")]
-        public void PutAndDeleteShouldBePropagated(int numberOfNodes)
+       /* [Theory]
+        [PropertyData("Nodes")]*/
+        [Fact]
+        public void PutAndDeleteShouldBePropagated()
         {
+            int numberOfNodes = 10;
             var clusterStores = CreateRaftCluster(numberOfNodes, activeBundles: "Replication", configureStore: store => store.Conventions.ClusterBehavior = ClusterBehavior.ReadFromLeaderWriteToLeader);
 
             SetupClusterConfiguration(clusterStores);

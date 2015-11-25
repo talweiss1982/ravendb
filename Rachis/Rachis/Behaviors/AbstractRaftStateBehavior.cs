@@ -160,7 +160,6 @@ namespace Rachis.Behaviors
         protected AbstractRaftStateBehavior(RaftEngine engine)
         {
             Engine = engine;
-            LastHeartbeatTime = DateTime.UtcNow;
             _log = LogManager.GetLogger(engine.Name + "." + GetType().FullName);
 
             _actionDispatch = new Dictionary<Type, Action<MessageContext>>
@@ -188,7 +187,7 @@ namespace Rachis.Behaviors
                 {typeof (Action), ctx => ((Action)ctx.Message)()},
 
             };
-        
+            LastHeartbeatTime = DateTime.UtcNow;
         }
 
         public RequestVoteResponse Handle(RequestVoteRequest req)
@@ -214,9 +213,10 @@ namespace Rachis.Behaviors
             // candidate and leaders both generate their own heartbeat messages
             var timeSinceLastHeartbeat = (DateTime.UtcNow - LastMessageTime).TotalMilliseconds;
 
-            var halfTimeout = (long)(Timeout / 2);
+            //var halfTimeout = (long)(Timeout / 2);
             if (State == RaftEngineState.Follower && req.ForcedElection == false &&
-                (timeSinceLastHeartbeat < halfTimeout) && Engine.CurrentLeader != null)
+                //(timeSinceLastHeartbeat < halfTimeout) && Engine.CurrentLeader != null)
+                (timeSinceLastHeartbeat < Timeout) && Engine.CurrentLeader != null)
             {
                 _log.Info("Received RequestVoteRequest from a {0}, which is a node within election timeout while leader exists, rejecting " , req.From);
                 return new RequestVoteResponse
@@ -530,11 +530,9 @@ namespace Rachis.Behaviors
                     Engine.StartTopologyChange(topologyChangeCommand);
                 }
             }
-            else
-            {
-                if (_log.IsDebugEnabled)
-                    _log.Debug("Received empty AppendEntriesRequest from {0}",
-                        req.From);
+            else if (_log.IsDebugEnabled)
+            {                
+                _log.Debug("Received empty AppendEntriesRequest from {0}", req.From);
             }
 
             var lastIndex = req.Entries.Length == 0 ?

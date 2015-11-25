@@ -15,7 +15,7 @@ using Rachis.Commands;
 using Rachis.Messages;
 using Rachis.Storage;
 using Rachis.Transport;
-
+using Raven.Abstractions;
 using Raven.Abstractions.Logging;
 
 namespace Rachis.Behaviors
@@ -92,10 +92,11 @@ namespace Rachis.Behaviors
         {
             while (_stopHeartbeatCancellationTokenSource.IsCancellationRequested == false)
             {
-                foreach (var peer in Engine.CurrentTopology.AllNodes)
+                var startTime = SystemTime.UtcNow;
+                Parallel.ForEach(Engine.CurrentTopology.AllNodes, (peer) =>
                 {
                     if (peer.Name.Equals(Engine.Name, StringComparison.OrdinalIgnoreCase))
-                        continue;// we don't need to send to ourselves
+                        return; // we don't need to send to ourselves
 
                     if (_log.IsDebugEnabled)
                         _log.Debug("HeartBeat sent from {0} to {1}", Engine.Name, peer.Name);
@@ -103,14 +104,15 @@ namespace Rachis.Behaviors
                     _stopHeartbeatCancellationTokenSource.Token.ThrowIfCancellationRequested();
 
                     SendEntriesToPeer(peer);
-                }
+                });
 
                 OnHeartbeatSent();
+                var wait = Math.Max(0,Engine.Options.HeartbeatTimeout - (int) (SystemTime.UtcNow - startTime).Milliseconds);
                 if (_log.IsDebugEnabled)
-                    _log.Debug("HeartBeat going to sleep for {0}", Engine.Options.HeartbeatTimeout);
+                    _log.Debug("HeartBeat going to sleep for {0}", wait);
                 //Thread.Sleep(Engine.Options.HeartbeatTimeout);
 
-                heartbeatMre.WaitOne(Engine.Options.HeartbeatTimeout);
+                heartbeatMre.WaitOne(wait);
             }
         }
 
@@ -387,6 +389,7 @@ namespace Rachis.Behaviors
             _nextIndexes[resp.From] = resp.LastLogIndex + 1;
             _matchIndexes[resp.From] = resp.LastLogIndex;
             _lastContact[resp.From] = DateTime.UtcNow;
+
             if (_log.IsDebugEnabled)
                 _log.Debug("Follower ({0}) has LastLogIndex = {1}", resp.From, resp.LastLogIndex);
 
@@ -446,8 +449,11 @@ namespace Rachis.Behaviors
             while (_pendingCommands.TryPeek(out result) && result.AssignedIndex <= maxIndexOnCurrentQuorum)
             {
                 if (_pendingCommands.TryDequeue(out result) == false)
+                {
+                    if (_log.IsDebugEnabled)
+                        _log.Debug("failed to dequeue pending commands (this should never happen)");
                     break; // should never happen
-
+                }
                 result.Complete();
             }
         }

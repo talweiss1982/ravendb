@@ -143,11 +143,13 @@ namespace Raven.Bundles.Replication.Tasks
         public void Pause()
         {
             shouldPause = true;
+            Console.WriteLine($"Pausing replication task at {docDb.TransactionalStorage.Id}");
         }
 
         public void Continue()
         {
             shouldPause = false;
+            Console.WriteLine($"Continue replication task at {docDb.TransactionalStorage.Id}");
         }
 
         private bool IsHotSpare()
@@ -165,7 +167,7 @@ namespace Raven.Bundles.Replication.Tasks
 
                 var name = GetType().Name;
 
-                var timeToWaitInMinutes = TimeSpan.FromMinutes(5);
+                var timeToWait = TimeSpan.FromMinutes(5);
                 bool runningBecauseOfDataModifications = false;
                 var context = docDb.WorkContext;
                 NotifySiblings();
@@ -187,11 +189,13 @@ namespace Raven.Bundles.Replication.Tasks
                         }
                     }
 
-                    runningBecauseOfDataModifications = context.WaitForWork(timeToWaitInMinutes, ref workCounter, name);
+                    runningBecauseOfDataModifications = context.WaitForWork(timeToWait, ref workCounter, name);
 
-                    timeToWaitInMinutes = runningBecauseOfDataModifications
-                        ? TimeSpan.FromSeconds(30)
-                        : TimeSpan.FromMinutes(5);
+                    timeToWait = runningBecauseOfDataModifications
+                        ?TimeSpan.FromMilliseconds(0)
+                        : TimeSpan.FromSeconds(15);
+                    /* ? TimeSpan.FromSeconds(30)
+                     : TimeSpan.FromMinutes(5);*/
                 }
 
                 IsRunning = false;

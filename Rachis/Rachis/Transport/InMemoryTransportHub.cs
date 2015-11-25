@@ -23,6 +23,8 @@ namespace Rachis.Transport
 
         private readonly Dictionary<string, InMemoryTransport> _transports = new Dictionary<string, InMemoryTransport>();
 
+        public readonly ILog Log = LogManager.GetLogger(typeof(InMemoryTransportHub).FullName);
+
         public ConcurrentDictionary<string, BlockingCollection<MessageContext>> MessageQueue
         {
             get { return _messageQueue; }
@@ -216,20 +218,14 @@ namespace Rachis.Transport
         {
             if (timeout < 0)
                 timeout = 0;
-
+            messageContext = null;
             var messageQueue = _messageQueue.GetOrAdd(dest, s => new BlockingCollection<MessageContext>());
             var tryReceiveMessage = messageQueue.TryTake(out messageContext, timeout, cancellationToken);
-            if (tryReceiveMessage)
-            {
-                if (_disconnectedNodes.Contains(dest) ||
-                    messageContext.Message is TimeoutException)
-                {
-                    messageContext = null;
-                    return false;
-                }
-            }
-
-            return tryReceiveMessage;
+            if (!tryReceiveMessage || _disconnectedNodes.Contains(dest) ||
+                    messageContext.Message is TimeoutException) return false;
+            if (Log.IsDebugEnabled)
+                Log.Debug($"Failed to recive a message for {dest} within {timeout}ms");
+            return true;
         }
     }
 }
