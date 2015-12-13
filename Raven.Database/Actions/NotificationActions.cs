@@ -36,7 +36,7 @@ namespace Raven.Database.Actions
         }
 
         //This is not raising notification through the transport because this is intended 
-		//to be used internaly only (server side).
+        //to be used internaly only (server side).
         public void RaiseNotifications(AttachmentChangeNotification obj, RavenJObject metadata)
         {
             var onDocumentChange = OnAttachmentChange;
