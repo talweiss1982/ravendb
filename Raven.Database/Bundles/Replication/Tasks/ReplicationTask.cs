@@ -116,7 +116,8 @@ namespace Raven.Bundles.Replication.Tasks
                     return;
                 docDb.WorkContext.ReplicationResetEvent.Set();
             };
-
+            //i want replication to work on error too so documents that didn't fail to get in will be replicated.
+            docDb.Notifications.OnBulkInsertChagne += (_, __) => { docDb.WorkContext.ReplicationResetEvent.Set(); };
             var replicationRequestTimeoutInMs = docDb.Configuration.Replication.ReplicationRequestTimeoutInMilliseconds;
 
             autoTuner = new IndependentBatchSizeAutoTuner(docDb.WorkContext, PrefetchingUser.Replicator);
