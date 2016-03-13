@@ -286,9 +286,9 @@ namespace FastTests.Server.Documents.Indexing
                             }
 
                             tx.Commit();
-                        }
-
+                        }                        
                         index.DoIndexingWork(CancellationToken.None);
+                        index.Query(new IndexQuery(), null, CancellationToken.None);
                         Assert.Equal(2, index.GetLastMappedEtagsForDebug().Values.Min());
 
                         using (var tx = context.OpenWriteTransaction())
