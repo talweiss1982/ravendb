@@ -1775,7 +1775,6 @@ return (int)Token.ALL_DOC;
 return (int)Token.AND;
             break;
         case 109: // Recognized '{QuotedTerm}',	Shortest string "\"\""
-if(InMethod)
                             yylval.s = DiscardEscapeChar(yytext);
                             return (int)Token.QUOTED_TERM;
             break;
