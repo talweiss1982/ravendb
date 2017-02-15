@@ -1,4 +1,7 @@
 ﻿using System;
+using System.IO;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Raven.Server.Routing;
@@ -27,10 +30,10 @@ namespace Raven.Server.Web.System
                         Uri.TryCreate(Server.Configuration.Core.TcpServerUrl, UriKind.RelativeOrAbsolute, out uri))
                         host = uri.Host;
                 }
-
                 var output = new DynamicJsonValue
                 {
-                    ["Url"] = new UriBuilder("tcp", host, tcpListenerStatus.Port).Uri.ToString()
+                    ["Url"] = new UriBuilder("tcp", host, tcpListenerStatus.Port).Uri.ToString(),
+                    ["Certificate"] = Server.serverCertificate.Value.CertificateForclients
                 };
 
                 context.Write(writer, output);

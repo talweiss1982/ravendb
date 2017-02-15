@@ -5,7 +5,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
@@ -195,6 +198,23 @@ namespace Raven.Server
         public string[] WebUrls { get; set; }
 
         private readonly JsonContextPool _tcpContextPool = new JsonContextPool();
+        internal readonly Lazy<CertificateHolder> serverCertificate = new Lazy<CertificateHolder>(GenerateSelfSignedCertificate);
+
+        public class CertificateHolder
+        {
+            public string CertificateForclients;
+            public X509Certificate2 Certificate;
+        }
+
+        private static CertificateHolder GenerateSelfSignedCertificate()
+        {
+            var generateSelfSignedCertificate = CertificateUtils.CreateSelfSignedCertificate("RavenDB", "Hibernating Rhinos");
+            return new CertificateHolder
+            {
+                Certificate = generateSelfSignedCertificate,
+                CertificateForclients = Convert.ToBase64String(generateSelfSignedCertificate.Export(X509ContentType.Cert))
+            };
+        }
 
         public class TcpListenerStatus
         {
@@ -334,7 +354,19 @@ namespace Raven.Server
                     tcpClient.NoDelay = true;
                     tcpClient.ReceiveBufferSize = 32 * 1024;
                     tcpClient.SendBufferSize = 4096;
-                    var stream = tcpClient.GetStream();
+                    Stream stream = tcpClient.GetStream();
+                    //if (Configuration.Encryption.UseSsl)
+                    //{
+                        SslStream sslStream = new SslStream(stream, false, (sender, certificate, chain, errors) =>
+                        {
+                            return errors == SslPolicyErrors.None ||
+                                   // it is fine that the client doesn't have a cert, we just care that they
+                                   // are connecting to us securely
+                                   errors == SslPolicyErrors.RemoteCertificateNotAvailable;
+                        });
+                        stream = sslStream;
+                        await sslStream.AuthenticateAsServerAsync(serverCertificate.Value.Certificate);
+                    //}
                     tcp = new TcpConnectionOptions
                     {
                         ContextPool = _tcpContextPool,

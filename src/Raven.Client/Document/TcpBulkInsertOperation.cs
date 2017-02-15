@@ -20,6 +20,9 @@ using Raven.Client.Util;
 using Sparrow;
 using Sparrow.Json;
 using Sparrow.Json.Parsing;
+using System.Net.Security;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Raven.Client.Document
 {
@@ -98,8 +101,14 @@ namespace Raven.Client.Document
             _tcpClient.SendBufferSize = 32 * 1024;
             _tcpClient.ReceiveBufferSize = 4096;
             var networkStream = _tcpClient.GetStream();
-
-            return new ConnectToServerResult { OAuthToken = apiToken, Stream = networkStream };
+                var expectedCert = new X509Certificate2(Convert.FromBase64String(command.Result.Certificate));
+            var sslStream = new SslStream(networkStream, false, (sender, certificate, chain, errors) =>
+            {
+                //var @equals = expectedCert.Equals(certificate);
+                return true;
+            });
+            await sslStream.AuthenticateAsClientAsync("RavenDB");
+            return new ConnectToServerResult { OAuthToken = apiToken, Stream = sslStream };
         }
 
         private void WriteToServer(string database, ConnectToServerResult connection)
