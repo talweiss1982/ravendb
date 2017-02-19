@@ -47,7 +47,7 @@ namespace Raven.Client.Document
         private bool _completed, _started;
         private bool _disposed;
         private Task _subscriptionTask;
-        private NetworkStream _networkStream;
+        private Stream _stream;
         private readonly TaskCompletionSource<object> _disposedTask = new TaskCompletionSource<object>();
 
         internal Subscription(SubscriptionConnectionOptions options, IDocumentStore documentStore,
@@ -210,8 +210,8 @@ namespace Raven.Client.Document
             _tcpClient.NoDelay = true;
             _tcpClient.SendBufferSize = 32 * 1024;
             _tcpClient.ReceiveBufferSize = 4096;
-            _networkStream = _tcpClient.GetStream();
-
+            _stream = _tcpClient.GetStream();
+            _stream = await TcpUtils.WrapStreamWithSsl(_tcpClient, command.Result);
             var header = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(new TcpConnectionHeaderMessage
             {
                 Operation = TcpConnectionHeaderMessage.OperationTypes.Subscription,
@@ -221,10 +221,10 @@ namespace Raven.Client.Document
 
             var options = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(_options));
 
-            await _networkStream.WriteAsync(header, 0, header.Length);
-            await _networkStream.FlushAsync();
+            await _stream.WriteAsync(header, 0, header.Length);
+            await _stream.FlushAsync();
             //Reading reply from server
-            using (var response = context.ReadForMemory(_networkStream, "Subscription/tcp-header-response"))
+            using (var response = context.ReadForMemory(_stream, "Subscription/tcp-header-response"))
             {
                 var reply = JsonDeserializationClient.TcpConnectionHeaderResponse(response);
                 switch (reply.Status)
@@ -237,10 +237,10 @@ namespace Raven.Client.Document
                         throw AuthorizationException.Unauthorized(reply.Status, _dbName);
                 }
             }
-            await _networkStream.WriteAsync(options, 0, options.Length);
+            await _stream.WriteAsync(options, 0, options.Length);
 
-            await _networkStream.FlushAsync();
-            return _networkStream;
+            await _stream.FlushAsync();
+            return _stream;
         }
 
         private void InformSubscribersOnError(Exception ex)
@@ -646,12 +646,12 @@ namespace Raven.Client.Document
 
         private void CloseTcpClient()
         {
-            if (_networkStream != null)
+            if (_stream != null)
             {
                 try
                 {
-                    _networkStream.Dispose();
-                    _networkStream = null;
+                    _stream.Dispose();
+                    _stream = null;
                 }
                 catch (Exception)
                 {

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Raven.Client;
 using Raven.Client.Commands;
 using Raven.Client.Indexes;
+using Sparrow.Collections.LockFree;
 using Sparrow.Json;
 using Xunit;
 
@@ -11,33 +12,42 @@ namespace FastTests.Client
 {
     public class BulkInserts : RavenNewTestBase
     {
-        [Fact]
-        public async Task Simple_Bulk_Insert()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task Simple_Bulk_Insert(bool useSsl)
         {
+            if (useSsl)
+            {
+                DoNotReuseServer(new ConcurrentDictionary<string, string> { { "Raven/UseSsl" ,"true"} });
+            }
             using (var store = GetDocumentStore())
-            {                
+            {
                 using (var bulkInsert = store.BulkInsert())
                 {
                     for (int i = 0; i < 1000; i++)
                     {
-                        await bulkInsert.StoreAsync(new FooBar() {Name = "foobar/" + i}, "FooBars/" + i);
+                        await bulkInsert.StoreAsync(new FooBar() { Name = "foobar/" + i }, "FooBars/" + i);
                     }
                 }
 
-                
+
                 using (var session = store.OpenSession())
                 {
                     var pagingInformation = new RavenPagingInformation();
-                    var len = session.Advanced.LoadStartingWith<FooBar>("FooBars/", null, 0, 1000, null, pagingInformation: pagingInformation);
+                    var len = session.Advanced.LoadStartingWith<FooBar>("FooBars/", null, 0, 1000, null,
+                        pagingInformation: pagingInformation);
                     Assert.Equal(1000, len.Length);
 
                     Assert.Equal(1000, pagingInformation.PageSize);
                     Assert.Equal(0, pagingInformation.Start);
                     Assert.Equal(1000, pagingInformation.NextPageStart);
-
                 }
             }
         }
+
+        //[Fact(Skip = "Missing feature: SslStream")]
+
 
         [Fact]
         public async Task Simple_Bulk_Insert_Should_Work()

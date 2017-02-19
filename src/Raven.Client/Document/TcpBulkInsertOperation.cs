@@ -100,16 +100,11 @@ namespace Raven.Client.Document
             _tcpClient.NoDelay = true;
             _tcpClient.SendBufferSize = 32 * 1024;
             _tcpClient.ReceiveBufferSize = 4096;
-            var networkStream = _tcpClient.GetStream();
-                var expectedCert = new X509Certificate2(Convert.FromBase64String(command.Result.Certificate));
-            var sslStream = new SslStream(networkStream, false, (sender, certificate, chain, errors) =>
-            {
-                //var @equals = expectedCert.Equals(certificate);
-                return true;
-            });
-            await sslStream.AuthenticateAsClientAsync("RavenDB");
-            return new ConnectToServerResult { OAuthToken = apiToken, Stream = sslStream };
+            var stream = await TcpUtils.WrapStreamWithSsl(_tcpClient, command.Result);
+            return new ConnectToServerResult { OAuthToken = apiToken, Stream = stream };
         }
+
+        
 
         private void WriteToServer(string database, ConnectToServerResult connection)
         {

@@ -33,7 +33,7 @@ namespace Raven.Server
         public static X509Certificate2 CreateSelfSignedCertificate(string subjectName, string issuerName)
         {
             AsymmetricKeyParameter CaPrivateKey;
-            var caCertificate = CreateCertificateAuthorityCertificate(subjectName, out CaPrivateKey);
+            CreateCertificateAuthorityCertificate(subjectName, out CaPrivateKey);
             return CreateSelfSignedCertificateBasedOnCertificateAuthorityPrivateKey(subjectName, issuerName, CaPrivateKey);
         }
 

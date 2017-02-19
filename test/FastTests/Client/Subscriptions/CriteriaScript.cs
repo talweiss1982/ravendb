@@ -10,9 +10,15 @@ namespace FastTests.Client.Subscriptions
 {
     public class CriteriaScript : SubscriptionTestBase
     {
-        [Fact]
-        public async Task BasicCriteriaTest()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task BasicCriteriaTest(bool useSsl)
         {
+            if (useSsl)
+            {
+                DoNotReuseServer(new global::Sparrow.Collections.LockFree.ConcurrentDictionary<string, string> { { "Raven/UseSsl", "true" } });
+            }
             using (var store = GetDocumentStore())
             using (var subscriptionManager = new DocumentSubscriptions(store))
             {
