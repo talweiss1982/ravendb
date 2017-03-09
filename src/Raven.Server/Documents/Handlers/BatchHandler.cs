@@ -241,12 +241,16 @@ namespace Raven.Server.Documents.Handlers
                             cmd.Document.TryGet(Constants.Documents.Metadata.Key, out metadata);
                             LastEtag = putResult.Etag;
 
+                        
+                            metadata.Modifications = new DynamicJsonValue(metadata)
+                            {
+                                [Constants.Documents.Metadata.Etag] = putResult.Etag,
+                                [Constants.Documents.Metadata.Id] = putResult.Key
+                            };
                             ModifiedCollections?.Add(putResult.Collection.Name);
 
                             Reply.Add(new DynamicJsonValue
                             {
-                                ["Key"] = putResult.Key,
-                                ["Etag"] = putResult.Etag,
                                 ["Method"] = "PUT",
                                 ["Metadata"] = metadata
                             });
