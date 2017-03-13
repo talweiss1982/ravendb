@@ -1,15 +1,7 @@
-import appUrl = require("common/appUrl");
 import dialog = require("plugins/dialog");
 import database = require("models/resources/database");
-import EVENTS = require("common/constants/events");
 import dialogViewModelBase = require("viewmodels/dialogViewModelBase");
-import getPluginsInfoCommand = require("commands/database/debug/getPluginsInfoCommand");
-import getDatabaseStatsCommand = require("commands/resources/getDatabaseStatsCommand");
-import getStatusDebugConfigCommand = require("commands/database/debug/getStatusDebugConfigCommand");
-import getClusterTopologyCommand = require("commands/database/cluster/getClusterTopologyCommand");
-import topology = require("models/database/replication/topology");
-import shell = require("viewmodels/shell");
-import resourcesManager = require("common/shell/resourcesManager");
+import databasesManager = require("common/shell/databasesManager");
 import createDatabaseCommand = require("commands/resources/createDatabaseCommand");
 
 import databaseCreationModel = require("models/resources/creation/databaseCreationModel");
@@ -37,8 +29,8 @@ class createDatabase extends dialogViewModelBase {
 
     indexesPathPlaceholder: KnockoutComputed<string>;
 
-    getResourceByName(name: string): database {
-        return resourcesManager.default.getDatabaseByName(name);
+    getDatabaseByName(name: string): database {
+        return databasesManager.default.getDatabaseByName(name);
     }
 
     activate() {
@@ -52,7 +44,7 @@ class createDatabase extends dialogViewModelBase {
 
     protected initObservables() {
         this.showWideDialog = ko.pureComputed(() => this.advancedConfigurationVisible());
-        this.databaseModel.setupValidation((name: string) => !this.getResourceByName(name));
+        this.databaseModel.setupValidation((name: string) => !this.getDatabaseByName(name));
 
         this.indexesPathPlaceholder = ko.pureComputed(() => {
             const name = this.databaseModel.name();
@@ -72,7 +64,7 @@ class createDatabase extends dialogViewModelBase {
     }
 
     createDatabase() {
-        eventsCollector.default.reportEvent('resource', 'create');
+        eventsCollector.default.reportEvent('database', 'create');
 
         const globalValid = this.isValid(this.databaseModel.globalValidationGroup);
         const advancedValid = this.isValid(this.databaseModel.advancedValidationGroup);
@@ -100,7 +92,7 @@ class createDatabase extends dialogViewModelBase {
     private createDatabaseInternal() {
         const databaseDocument = this.databaseModel.toDto();
 
-        resourcesManager.default.activateAfterCreation(database.qualifier, databaseDocument.Id);
+        databasesManager.default.activateAfterCreation(databaseDocument.Id);
 
         new createDatabaseCommand(databaseDocument)
             .execute()

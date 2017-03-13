@@ -38,16 +38,16 @@ namespace Raven.Server.Web.System
                     writer.WriteStartObject();
 
                     writer.WritePropertyName(nameof(DatabasesInfo.Databases));
-                    writer.WriteArray(context, ServerStore.StartingWith(context, Constants.Documents.Prefix, GetStart(), GetPageSize(int.MaxValue)), (w, c, dbDoc) =>
+                    writer.WriteArray(context, ServerStore.Cluster.ItemsStartingWith(context, Constants.Documents.Prefix, GetStart(), GetPageSize(int.MaxValue)), (w, c, dbDoc) =>
                     {
-                        var databaseName = dbDoc.Key.Substring(Constants.Documents.Prefix.Length);
+                        var databaseName = dbDoc.Item1.Substring(Constants.Documents.Prefix.Length);
                         if (namesOnly)
                         {
                             w.WriteString(databaseName);
                             return;
                         }
 
-                        WriteDatabaseInfo(databaseName, dbDoc.Data, context, w);
+                        WriteDatabaseInfo(databaseName, dbDoc.Item2, context, w);
                     }); 
 
                     writer.WriteEndObject();
@@ -67,7 +67,7 @@ namespace Raven.Server.Web.System
                 {
                     var dbId = Constants.Documents.Prefix + dbName;
                     long etag;
-                    using (var dbDoc = ServerStore.Read(context, dbId, out etag))
+                    using (var dbDoc = ServerStore.Cluster.Read(context, dbId, out etag))
                     {
                         WriteDatabaseInfo(dbName, dbDoc, context, writer);
                         return Task.CompletedTask;

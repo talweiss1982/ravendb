@@ -5,8 +5,6 @@ import database = require("models/resources/database");
 import appUrl = require("common/appUrl");
 import oauthContext = require("common/oauthContext");
 import forge = require("forge");
-import router = require("plugins/router");
-
 import protractedCommandsDetector = require("common/notifications/protractedCommandsDetector");
 
 /// Commands encapsulate a read or write operation to the database and support progress notifications and common AJAX related functionality.
@@ -172,7 +170,7 @@ class commandBase {
                 /* TODO
                 var currentDb = appUrl.getDatabase();
                 if (currentDb != null && currentDb.name === dbBeingUpdated) {
-                    router.navigate(appUrl.forUpgrade(new database(dbBeingUpdated, false, []))); //TODO: use resources manger to get this database!
+                    router.navigate(appUrl.forUpgrade(new database(dbBeingUpdated, false, []))); //TODO: use database manger to get this database!
                 }*/
             } else if (request.status === ResponseCodes.PreconditionFailed && oauthContext.apiKey()) {
                 this.oauthHandler.handleOAuth(ajaxTask, request, () => this.retryOriginalRequest(ajaxTask, originalArguments));

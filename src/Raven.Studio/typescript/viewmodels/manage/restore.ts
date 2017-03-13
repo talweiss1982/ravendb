@@ -1,12 +1,10 @@
 import viewModelBase = require("viewmodels/viewModelBase");
-import shell = require("viewmodels/shell");
 import accessHelper = require("viewmodels/shell/accessHelper");
 import database = require("models/resources/database");
 import getDocumentWithMetadataCommand = require("commands/database/documents/getDocumentWithMetadataCommand");
 import appUrl = require("common/appUrl");
 import monitorRestoreCommand = require("commands/maintenance/monitorRestoreCommand");
 import startDbRestoreCommand = require("commands/maintenance/startRestoreCommand");
-import resourcesManager = require("common/shell/resourcesManager");
 import eventsCollector = require("common/eventsCollector");
 
 class resourceRestore {
@@ -58,9 +56,8 @@ class resourceRestore {
 }
 
 class restore extends viewModelBase {
-    private resourceManager = resourcesManager.default;
 
-    private dbRestoreOptions: resourceRestore = new resourceRestore(this, database.type, this.resourceManager.databases);
+    private dbRestoreOptions: resourceRestore = new resourceRestore(this, database.type, this.databasesManager.databases);
 
     disableReplicationDestinations = ko.observable<boolean>(false);
     generateNewDatabaseId = ko.observable<boolean>(false);

@@ -19,6 +19,7 @@ using Raven.Server.Documents.Operations;
 using Raven.Server.Documents.Versioning;
 using Raven.Server.Documents.SqlReplication;
 using Raven.Server.Documents.PeriodicExport;
+using Raven.Server.Documents.Subscriptions;
 using Raven.Server.Web.System;
 using Raven.Server.NotificationCenter.Notifications;
 using Raven.Server.NotificationCenter.Notifications.Server;
@@ -151,7 +152,7 @@ namespace TypingsGenerator
             scripter.AddType(typeof(LicenseStatus));
 
             // database admin
-            scripter.AddType(typeof(ResourceDeleteResult));
+            scripter.AddType(typeof(DatabaseDeleteResult));
 
             // io metrics stats
             scripter.AddType(typeof(IOMetricsHistoryStats));
