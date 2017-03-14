@@ -144,7 +144,8 @@ namespace Raven.Server.Web.System
 
         private Task DeleteDatabases(StringValues names)
         {
-            throw new NotSupportedException();
+            return Task.CompletedTask;
+            //throw new NotSupportedException();
             //var isHardDelete = GetBoolValueQueryString("hard-delete", required: false) ?? false;
 
             //TransactionOperationContext context;

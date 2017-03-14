@@ -122,7 +122,7 @@ namespace Raven.Server.ServerWide
 
             _engine = new RachisConsensus<ClusterStateMachine>();
             _engine.Initialize(_env);
-
+            DatabasesLandlord.RegisterForClusterOnDatabaseChanged();
             _timer = new Timer(IdleOperations, null, _frequencyToCheckForIdleDatabases, TimeSpan.FromDays(7));
             _notificationsStorage.Initialize(_env, ContextPool);
             DatabaseInfoCache.Initialize(_env, ContextPool);
@@ -141,6 +141,21 @@ namespace Raven.Server.ServerWide
             }, "put-cmd"))
             {
                 await _engine.PutAsync(putCmd);
+            }
+        }
+
+        public async Task PutEditVersioningCommandAsync(JsonOperationContext context, string databaseName, BlittableJsonReaderObject val)
+        {
+            //TODO: redirect to leader
+            using (var editVersioningCmd = context.ReadObject(new DynamicJsonValue
+            {
+                ["Type"] = nameof(EditVersioningCommand),
+                [nameof(EditVersioningCommand.Configuration)] = val,
+                [nameof(EditVersioningCommand.Name)] = databaseName,
+            }, "edit-versioning-cmd"))
+            {
+                var index = await _engine.PutAsync(editVersioningCmd);
+                await Cluster.WaitForIndexNotification(index);
             }
         }
 
@@ -203,7 +218,7 @@ namespace Raven.Server.ServerWide
         {
             try
             {
-                foreach (var db in DatabasesLandlord.ResourcesStoresCache)
+                foreach (var db in DatabasesLandlord.DatabasesCache)
                 {
                     try
                     {
@@ -236,7 +251,7 @@ namespace Raven.Server.ServerWide
                     {
                         // intentionally inside the loop, so we get better concurrency overall
                         // since shutting down a database can take a while
-                        DatabasesLandlord.UnloadResource(db, skipIfActiveInDuration: maxTimeDatabaseCanBeIdle, shouldSkip: database => database.Configuration.Core.RunInMemory);
+                        DatabasesLandlord.UnloadDatabase(db, maxTimeDatabaseCanBeIdle, database => database.Configuration.Core.RunInMemory);
                     }
 
                 }

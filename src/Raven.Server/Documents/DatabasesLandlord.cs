@@ -41,7 +41,12 @@ namespace Raven.Server.Documents
             _serverStore = serverStore;
             _resourceSemaphore = new SemaphoreSlim(_serverStore.Configuration.Databases.MaxConcurrentResourceLoads);
             _concurrentResourceLoadTimeout = _serverStore.Configuration.Databases.ConcurrentResourceLoadTimeout.AsTimeSpan;
-            _logger = LoggingSource.Instance.GetLogger<DatabasesLandlord>("Raven/Server");
+            _logger = LoggingSource.Instance.GetLogger<DatabasesLandlord>("Raven/Server");            
+        }
+		
+		//This needs to be invoked after the engine is initialized
+        public void RegisterForClusterOnDatabaseChanged()
+        {
             _serverStore.Cluster.DatabaseChanged += ClusterOnDatabaseChanged;
         }
 
