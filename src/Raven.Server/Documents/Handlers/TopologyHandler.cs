@@ -117,15 +117,10 @@ namespace Raven.Server.Documents.Handlers
         private void GenerateTopology(DocumentsOperationContext context, BlittableJsonTextWriter writer, IEnumerable<DynamicJsonValue> nodes = null, long etag = -1)
         {
             context.Write(writer, new DynamicJsonValue
-            {
-                [nameof(Topology.LeaderNode)] = new DynamicJsonValue
-                {
-                    [nameof(ServerNode.Url)] = GetStringQueryString("url", required: false) ?? Server.Configuration.Core.ServerUrl,
-                    [nameof(ServerNode.Database)] = Database.Name,
-                },
+            {                
                 [nameof(Topology.Nodes)] = (nodes == null)? new DynamicJsonArray(): new DynamicJsonArray(nodes),
                 [nameof(Topology.ReadBehavior)] =
-                ReadBehavior.LeaderWithFailoverWhenRequestTimeSlaThresholdIsReached.ToString(),
+                    ReadBehavior.CurrentNodeWithFailoverWhenRequestTimeSlaThresholdIsReached.ToString(),
                 [nameof(Topology.WriteBehavior)] = WriteBehavior.LeaderOnly.ToString(),
                 [nameof(Topology.SLA)] = new DynamicJsonValue
                 {
@@ -150,7 +145,6 @@ namespace Raven.Server.Documents.Handlers
                 destinations[index] = new DynamicJsonValue
                 {
                     [nameof(ServerNode.Url)] = des.Url,
-                    [nameof(ServerNode.ApiKey)] = des.ApiKey,
                     [nameof(ServerNode.Database)] = des.Database
                 };
             }

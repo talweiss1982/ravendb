@@ -123,11 +123,14 @@ namespace Raven.Client.Documents
         /// <value>The conventions.</value>
         public virtual DocumentConventions Conventions
         {
-            get { return _conventions ?? (_conventions = new DocumentConventions()); }
-            set { _conventions = value; }
+            get => _conventions ?? (_conventions = new DocumentConventions());
+            set => _conventions = value;
         }
 
-        private string _url;
+        /// <summary>
+        /// Gets or sets the URL.
+        /// </summary>
+          private string _url;
 
         /// <summary>
         /// Gets or sets the URL.
