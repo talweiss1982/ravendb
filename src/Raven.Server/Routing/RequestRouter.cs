@@ -267,12 +267,9 @@ namespace Raven.Server.Routing
                         //This is the case where we don't know the server but the admin had injected the server's 
                         //public key into our server store using an external tool.
                         if (publicKey == null)
-                        {
-                            try
-                            {
-                                publicKey = ravenServer.ServerStore.GetSecretKey(txContext, $"Raven/Sign/Public/{tag}");
-                            }
-                            catch
+                        {                            
+                            publicKey = ravenServer.ServerStore.GetSecretKey(txContext, $"Raven/Sign/Public/{tag}");
+                            if (publicKey == null)
                             {
                                 return false;
                             }
