@@ -192,12 +192,15 @@ namespace Raven.Server
 
         internal async Task ListenToPipe()
         {
-            lock (this)
-            {
-                while (true)
+            while (true)
                 {
                     try
                     {
+                        //This can happen if the first iteration through while re-creating the pipe
+                        if (Pipe == null)
+                        {
+                            OpenPipe();
+                        }
                         await Pipe.WaitForConnectionAsync();
                         using (var reader = new StreamReader(Pipe))
                         using (var writer = new StreamWriter(Pipe))
@@ -277,10 +280,10 @@ namespace Raven.Server
                         {
                             _logger.Info("Got an exception trying to re-connect to server pipe", e);
                         }
-                        break;
+                        //i don't want a tight loop retrying to create the pipe when something is wrong
+                        await Task.Delay(TimeSpan.FromSeconds(15));
                     }
                 }
-            }
         }
 
         private static void PipeLogAndReply(StreamWriter writer, string reply)
