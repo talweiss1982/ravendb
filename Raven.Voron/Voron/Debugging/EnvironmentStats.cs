@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Voron.Debugging
@@ -19,5 +20,7 @@ namespace Voron.Debugging
     {
         public long Id;
         public TransactionFlags Flags;
+        public string TransactionStackTrace { get; set; }
+        public DateTime CreationDate { get; set; }
     }
 }

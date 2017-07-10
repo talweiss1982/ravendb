@@ -30,6 +30,7 @@ using Raven.Database.Linq;
 using Raven.Database.Linq.Ast;
 using Raven.Database.Server.WebApi;
 using Raven.Database.Server.WebApi.Attributes;
+using Raven.Database.Server.WebApi.Handlers;
 using Raven.Database.Storage;
 using Raven.Database.Util;
 using Raven.Json.Linq;
@@ -40,6 +41,7 @@ namespace Raven.Database.Server.Controllers
     [RoutePrefix("")]
     public class DebugController : BaseDatabaseApiController
     {
+        public static ThrottlingHandler.ThrottlingHandlerStats RequestThrottlerStats { get; set; }
 
         public class CounterDebugInfo
         {
@@ -113,6 +115,16 @@ namespace Raven.Database.Server.Controllers
 
             return GetMessageWithObject(counter.CreateMetrics());
         }
+
+        //RequestThrottlerStats
+
+        [HttpGet]
+        [RavenRoute("debug/throttling-stats")]
+        public HttpResponseMessage GetThrottlingStats()
+        {
+            return GetMessageWithObject(RequestThrottlerStats);
+        }
+
 
         [HttpGet]
         [RavenRoute("debug/cache-details")]

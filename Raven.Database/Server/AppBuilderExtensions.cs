@@ -12,12 +12,9 @@ using System.Web.Http;
 using System.Web.Http.Dispatcher;
 using System.Web.Http.Hosting;
 using Microsoft.Owin;
-using Rachis;
-
 using Raven.Abstractions.Connection;
 using Raven.Abstractions.Data;
 using Raven.Database.Config;
-using Raven.Database.DiskIO;
 using Raven.Database.Raft;
 using Raven.Database.FileSystem.Util;
 using Raven.Database.Server;
@@ -36,7 +33,6 @@ namespace Owin
     public static class AppBuilderExtensions
     {
         private const string HostOnAppDisposing = "host.OnAppDisposing";
-
 
         public static IAppBuilder UseRavenDB(this IAppBuilder app)
         {
@@ -132,7 +128,10 @@ namespace Owin
             cfg.Services.Replace(typeof(IAssembliesResolver), new RavenAssemblyResolver());
             cfg.Filters.Add(new RavenExceptionFilterAttribute());
 
-            cfg.MessageHandlers.Add(new ThrottlingHandler(options.SystemDatabase.Configuration.MaxConcurrentServerRequests));
+            var throttlingHandler = new ThrottlingHandler(options.SystemDatabase.Configuration.MaxConcurrentServerRequests);
+            DebugController.RequestThrottlerStats = throttlingHandler.Stats;
+
+            cfg.MessageHandlers.Add(throttlingHandler);
             cfg.MessageHandlers.Add(new GZipToJsonAndCompressHandler());
 
             cfg.Services.Replace(typeof(IHostBufferPolicySelector), new SelectiveBufferPolicySelector());

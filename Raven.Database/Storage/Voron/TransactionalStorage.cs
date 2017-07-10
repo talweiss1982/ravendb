@@ -246,22 +246,32 @@ namespace Raven.Storage.Voron
 
         public IStorageActionsAccessor CreateAccessor()
         {
-            var snapshotReference = new Reference<SnapshotReader> { Value = tableStorage.CreateSnapshot() };
-            var writeBatchReference = new Reference<WriteBatch> { Value = new WriteBatch() };
-            
-            var accessor = new StorageActionsAccessor(uuidGenerator, _documentCodecs,
-                    documentCacher, writeBatchReference, snapshotReference, tableStorage, this, bufferPool);
-            accessor.OnDispose += () =>
+            Reference<SnapshotReader> snapshotReference = null;
+            try
             {
-                var exceptionAggregator = new ExceptionAggregator("Could not properly dispose StorageActionsAccessor");
+                snapshotReference = new Reference<SnapshotReader> { Value = tableStorage.CreateSnapshot() };
+                var writeBatchReference = new Reference<WriteBatch> { Value = new WriteBatch() };
+            
+                var accessor = new StorageActionsAccessor(uuidGenerator, _documentCodecs,
+                    documentCacher, writeBatchReference, snapshotReference, tableStorage, this, bufferPool);
+                accessor.OnDispose += () =>
+                {
+                    var exceptionAggregator = new ExceptionAggregator("Could not properly dispose StorageActionsAccessor");
 
-                exceptionAggregator.Execute(() => snapshotReference.Value.Dispose());
-                exceptionAggregator.Execute(() => writeBatchReference.Value.Dispose());
+                    exceptionAggregator.Execute(() => snapshotReference.Value.Dispose());
+                    exceptionAggregator.Execute(() => writeBatchReference.Value.Dispose());
 
-                exceptionAggregator.ThrowIfNeeded();
-            };
+                    exceptionAggregator.ThrowIfNeeded();
+                };
 
-            return accessor;
+                return accessor;
+            }
+            catch (Exception e)
+            {
+                Log.ErrorException("Failed to create accessor", e);                
+                snapshotReference?.Value?.Transaction?.Dispose();
+                throw;
+            }
         }
 
         public bool SkipConsistencyCheck
@@ -549,7 +559,8 @@ namespace Raven.Storage.Voron
                     ActiveTransactions = stats.ActiveTransactions.Select(x => new VoronActiveTransaction
                     {
                         Id = x.Id,
-                        Flags = x.Flags.ToString()
+                        Flags = x.Flags.ToString(),
+                        TransactionStackTrace = x.TransactionStackTrace
                     }).ToList(),
                     ScratchBufferPoolInfo = Environment.ScratchBufferPool.InfoForDebug(Environment.PossibleOldestReadTransaction)
                 }

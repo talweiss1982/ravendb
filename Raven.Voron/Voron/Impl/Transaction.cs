@@ -37,6 +37,12 @@ namespace Voron.Impl
 
         public TransactionFlags Flags { get; private set; }
 
+        private readonly DateTime _creationDate = DateTime.Now;
+        public DateTime CreationDate
+        {
+            get { return _creationDate; }
+        }
+
         internal StorageEnvironment Environment
         {
             get { return _env; }
@@ -95,8 +101,13 @@ namespace Voron.Impl
 
         public bool FlushedToJournal { get; private set; }
 
-        public Transaction(StorageEnvironment env, long id, TransactionFlags flags, IFreeSpaceHandling freeSpaceHandling)
+        public Transaction(StorageEnvironment env, long id, TransactionFlags flags, 
+            IFreeSpaceHandling freeSpaceHandling)
         {
+            if (flags == TransactionFlags.Read)
+            {
+                TransactionStackTrace = System.Environment.StackTrace;
+            }
             _dataPager = env.Options.DataPager;
             _env = env;
             _journal = env.Journal;
@@ -134,6 +145,8 @@ namespace Voron.Impl
 
             MarkTreesForWriteTransaction();
         }
+
+        public string TransactionStackTrace { get; set; }
 
         private void InitializeRoots()
         {

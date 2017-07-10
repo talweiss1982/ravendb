@@ -4,6 +4,7 @@
 //  </copyright>
 // -----------------------------------------------------------------------
 using System;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -19,14 +20,43 @@ namespace Raven.Database.Server.WebApi.Handlers
         private static readonly ILog Logger = LogManager.GetCurrentClassLogger();
 
         private readonly SemaphoreSlim concurrentRequestSemaphore;
+        public ThrottlingHandlerStats Stats { get; } 
+
+        public class ThrottlingHandlerStats
+        {
+            private readonly SemaphoreSlim concurrentRequestSemaphore;
+
+            public readonly ConcurrentDictionary<HttpRequestMessage, RequestStatus> CurrentRequests = new ConcurrentDictionary<HttpRequestMessage, RequestStatus>();
+
+            public class RequestStatus
+            {
+                public bool IsWaiting { get; set; }
+                public DateTime WhenStarted { get; set; }                     
+            }
+
+            public int SemaphoreCount
+            {
+                get { return concurrentRequestSemaphore.CurrentCount; }
+            }
+
+            internal ThrottlingHandlerStats(SemaphoreSlim concurrentRequestSemaphore)
+            {
+                this.concurrentRequestSemaphore = concurrentRequestSemaphore;
+            }
+        }
 
         public ThrottlingHandler(int maxConcurrentServerRequests)
         {
             concurrentRequestSemaphore = new SemaphoreSlim(maxConcurrentServerRequests);
+            Stats = new ThrottlingHandlerStats(concurrentRequestSemaphore);
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            //bypass concurrent request limit for debug endpoints
+            if(request.RequestUri.OriginalString.Contains("/debug"))
+                return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
             bool waiting = false;
             try
             {
@@ -34,7 +64,14 @@ namespace Raven.Database.Server.WebApi.Handlers
 
                 try
                 {
+                    Stats.CurrentRequests.GetOrAdd(request, new ThrottlingHandlerStats.RequestStatus
+                    {
+                        WhenStarted = DateTime.Now
+                    });
+
                     waiting = await concurrentRequestSemaphore.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+
+                    Stats.CurrentRequests[request].IsWaiting = true;
                 }
                 catch (TaskCanceledException e)
                 {
@@ -65,6 +102,9 @@ namespace Raven.Database.Server.WebApi.Handlers
             {
                 if (waiting)
                     concurrentRequestSemaphore.Release();
+
+                ThrottlingHandlerStats.RequestStatus _;
+                Stats.CurrentRequests.TryRemove(request, out _);
             }
         }
 

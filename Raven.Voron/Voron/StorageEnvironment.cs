@@ -1,10 +1,12 @@
 using Sparrow.Collections;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -253,10 +255,12 @@ namespace Voron
         {
             get
             {
-                return _activeTransactions.Select(x => new ActiveTransaction()
+                return _activeTransactions.Select(x => new ActiveTransaction
                 {
                     Id = x.Id,
-                    Flags = x.Flags
+                    Flags = x.Flags,
+                    TransactionStackTrace = x.TransactionStackTrace,
+                    CreationDate = x.CreationDate
                 }).ToList();
             }
         }
@@ -618,7 +622,7 @@ namespace Voron
                     UsedDataFileSizeInBytes = (State.NextPageNumber - 1) * AbstractPager.PageSize,
                     AllocatedDataFileSizeInBytes = numberOfAllocatedPages * AbstractPager.PageSize,
                     NextWriteTransactionId = NextWriteTransactionId,
-                    ActiveTransactions = ActiveTransactions
+                    ActiveTransactions = ActiveTransactions,
                 };
 
             }
