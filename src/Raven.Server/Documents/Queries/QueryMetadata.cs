@@ -113,7 +113,7 @@ namespace Raven.Server.Documents.Queries
                 RootAliasPaths[fromAlias] = (null, false);
             }
 
-            if (Query.GroupBy != null)
+           /* if (Query.GroupBy != null)
             {
                 GroupBy = new QueryFieldName[Query.GroupBy.Count];
 
@@ -122,7 +122,7 @@ namespace Raven.Server.Documents.Queries
                     GroupBy[i] = GetIndexFieldName(Query.GroupBy[i], parameters);
                 }
             }
-
+            */
             if (Query.Load != null)
                 HandleLoadClause(parameters);
 

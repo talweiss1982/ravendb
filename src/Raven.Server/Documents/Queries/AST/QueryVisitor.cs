@@ -16,10 +16,10 @@ namespace Raven.Server.Documents.Queries.AST
 
             VisitFromClause(q.From.From, q.From.Alias, q.From.Filter, q.From.Index);
 
-            if (q.GroupBy != null)
+            /*if (q.GroupBy != null)
             {
                 VisitGroupByExpression(q.GroupBy);
-            }
+            }*/
 
             if (q.Where != null)
             {

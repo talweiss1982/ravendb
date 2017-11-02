@@ -174,15 +174,30 @@ namespace Raven.Server.Documents.Queries.Parser
             return (name, functionText);
         }
 
-        private List<FieldExpression> GroupBy()
+        private List<(QueryExpression exp, StringSegment? allias)> GroupBy()
         {
-            var fields = new List<FieldExpression>();
+            var fields = new List<(QueryExpression exp, StringSegment? allias)>();
             do
             {
                 if (Field(out var field) == false)
                     ThrowParseException("Unable to get field for GROUP BY");
-
-                fields.Add(field);
+                QueryExpression op;
+                if (Scanner.TryScan('('))
+                {
+                    if (Method(field, out var method) == false)
+                        ThrowParseException($"Unable to parse method call {field} for GROUP BY");
+                    op = method;
+                }
+                else
+                {
+                    op = field;
+                }
+                StringSegment? allias = null;
+                if (Scanner.TryScan("AS"))
+                {
+                    Alias(false, out allias);//TODO: figure out how aliasAsRequire should be used
+                }
+                fields.Add((field, allias));
 
                 if (Scanner.TryScan(",") == false)
                     break;
