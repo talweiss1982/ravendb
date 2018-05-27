@@ -66,7 +66,7 @@ namespace Raven.Server.Documents.Indexes.Persistence.Lucene.Documents
                 object value;
                 if (obj.IsObject() && obj.IsArray() == false)
                 {
-                    //In case TryDetectDynamicFieldCreation finds a dynamic field it will populate 'field.Name' witht the actual property name 
+                    //In case TryDetectDynamicFieldCreation finds a dynamic field it will populate 'field.Name' with the actual property name 
                     //so we must use field.Name and not property from this point on.
                     var val = TryDetectDynamicFieldCreation(property, obj.AsObject(), field);
                     if (val != null)
