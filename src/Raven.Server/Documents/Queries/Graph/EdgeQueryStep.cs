@@ -47,26 +47,22 @@ namespace Raven.Server.Documents.Queries.Graph
                     CompleteInitialization();
                     return default;
                 }
-                return new ValueTask(InitializeRightAsync(rightTask));
+                return InitializeRightAsync(rightTask);
             }
 
-            return new ValueTask(InitializeLeftAsync(leftTask));
+            return InitializeLeftAsync(leftTask);
         }
 
-        private async Task InitializeRightAsync(ValueTask rightTask)
+        private async ValueTask InitializeRightAsync(ValueTask rightTask)
         {
             await rightTask;
             CompleteInitialization();
         }
 
-        private async Task InitializeLeftAsync(ValueTask leftTask)
+        private async ValueTask InitializeLeftAsync(ValueTask leftTask)
         {
             await leftTask;
-            var rightTask = _right.Initialize();
-            if (rightTask.IsCompleted == false)
-            {
-                await rightTask;
-            }
+            await _right.Initialize();
             CompleteInitialization();
         }
 
@@ -86,7 +82,7 @@ namespace Raven.Server.Documents.Queries.Graph
                 Edge = edge,
                 EdgeAlias = edgeAlias
             };
-            string alias = _left.GetOutputAlias();
+            string alias = _left.GetOuputAlias();
 
             while (_left.GetNext(out var left))
             {
@@ -112,9 +108,9 @@ namespace Raven.Server.Documents.Queries.Graph
             throw new NotSupportedException("Cannot get a match by id from an edge");
         }
 
-        public string GetOutputAlias()
+        public string GetOuputAlias()
         {
-            return _right.GetOutputAlias();
+            return _right.GetOuputAlias();
         }
 
         public HashSet<string> GetAllAliases()
@@ -127,7 +123,7 @@ namespace Raven.Server.Documents.Queries.Graph
             _left.Analyze(match, addNode, addEdge);
             _right.Analyze(match, addNode, addEdge);
 
-            var prev = match.GetResult(_left.GetOutputAlias());
+            var prev = match.GetResult(_left.GetOuputAlias());
 
             AnalyzeEdge(_edgesExpression, _edgePath.Alias, match, prev, addEdge);
         }
