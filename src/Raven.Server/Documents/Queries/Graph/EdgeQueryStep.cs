@@ -82,7 +82,7 @@ namespace Raven.Server.Documents.Queries.Graph
                 Edge = edge,
                 EdgeAlias = edgeAlias
             };
-            string alias = _left.GetOuputAlias();
+            string alias = _left.GetOutputAlias();
 
             while (_left.GetNext(out var left))
             {
@@ -108,9 +108,9 @@ namespace Raven.Server.Documents.Queries.Graph
             throw new NotSupportedException("Cannot get a match by id from an edge");
         }
 
-        public string GetOuputAlias()
+        public string GetOutputAlias()
         {
-            return _right.GetOuputAlias();
+            return _right.GetOutputAlias();
         }
 
         public HashSet<string> GetAllAliases()
@@ -123,7 +123,7 @@ namespace Raven.Server.Documents.Queries.Graph
             _left.Analyze(match, addNode, addEdge);
             _right.Analyze(match, addNode, addEdge);
 
-            var prev = match.GetResult(_left.GetOuputAlias());
+            var prev = match.GetResult(_left.GetOutputAlias());
 
             AnalyzeEdge(_edgesExpression, _edgePath.Alias, match, prev, addEdge);
         }
