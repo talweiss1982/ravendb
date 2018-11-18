@@ -253,6 +253,11 @@ namespace Raven.Server.Documents.Queries.Graph
             {
                 aliases.UnionWith(_parent.GetAllAliases());
             }
+
+            public void SetPrev(IGraphQueryStep prev)
+            {
+             
+            }
         }
 
         private async Task CompleteInitializationForStepAsync(int position, ValueTask stepTask)
