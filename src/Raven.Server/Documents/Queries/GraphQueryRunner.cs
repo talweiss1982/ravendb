@@ -105,8 +105,11 @@ namespace Raven.Server.Documents.Queries
                 var qr = await GetQueryResults(query, documentsContext, existingResultEtag, token);
                 var q = query.Metadata.Query;
 
-                //TODO: handle order by, load, include clauses
-
+                //TODO: handle order by, load,  clauses
+                if (query.Metadata.OrderBy != null)
+                {
+                    Sort(qr, query.Metadata.OrderBy);
+                }
 
                 if (q.Select == null && q.SelectFunctionBody.FunctionText == null)
                 {
@@ -134,12 +137,28 @@ namespace Raven.Server.Documents.Queries
 
                         final.AddResult(result);
                     }
+
+                    //include clause
                 }
 
                 final.TotalResults = final.Results.Count;
                 return final;
             }
         }
+
+        private void Sort((List<Match> Matches, GraphQueryPlan QueryPlan) qr, OrderByField[] orderBy)
+        {
+            if (orderBy.Length == 1)
+            {
+                var orderByFieldSorter = new GraphQueryOrderByFieldComparer(orderBy.First());
+                qr.Matches.Sort(orderByFieldSorter);
+                return;
+            }
+
+            var orderByMltipleFieldsSorter = new GraphQueryMultipleFieldsComparer(orderBy);
+            qr.Matches.Sort(orderByMltipleFieldsSorter);
+        }
+
 
         private async Task<(List<Match> Matches, GraphQueryPlan QueryPlan)> GetQueryResults(IndexQueryServerSide query, DocumentsOperationContext documentsContext, long? existingResultEtag, OperationCancelToken token)
         {
@@ -164,7 +183,7 @@ namespace Raven.Server.Documents.Queries
                             matchResults[i] = default;
                     }
                 }
-            }            
+            }      
             return (matchResults.Skip(query.Start).Take(query.PageSize).ToList(), qp);
         }
 
