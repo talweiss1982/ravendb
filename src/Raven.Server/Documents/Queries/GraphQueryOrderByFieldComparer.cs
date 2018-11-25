@@ -176,7 +176,24 @@ namespace Raven.Server.Documents.Queries
                     ThrowMissmatchTypes(xObject, yObject);
                     break;
                 case IComparable xComparable:
-                    return xComparable.CompareTo(yObject) * order;
+                    if(yObject.GetType() == xObject.GetType())
+                        return xComparable.CompareTo(yObject) * order;
+                    ThrowMissmatchTypes(xObject, yObject);
+                    break;
+                case BlittableJsonReaderArray xBlittableJsonReaderArray:
+                    if (yObject is BlittableJsonReaderArray yBlittableJsonReaderArray)
+                    {
+                        return string.CompareOrdinal(xBlittableJsonReaderArray.ToString(), yBlittableJsonReaderArray.ToString());
+                    }
+                    ThrowMissmatchTypes(xObject, yObject);
+                    break;
+                case BlittableJsonReaderObject xBlittableJsonReaderObject:
+                    if (yObject is BlittableJsonReaderObject yBlittableJsonReaderObject)
+                    {
+                        return string.CompareOrdinal(xBlittableJsonReaderObject.ToString(), yBlittableJsonReaderObject.ToString());
+                    }
+                    ThrowMissmatchTypes(xObject, yObject);
+                    break;
                 default:
                     ThrowMissmatchTypes(xObject, yObject);
                     break;

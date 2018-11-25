@@ -106,10 +106,7 @@ namespace Raven.Server.Documents.Queries
                 var q = query.Metadata.Query;
 
                 //TODO: handle order by, load,  clauses
-                if (query.Metadata.OrderBy != null)
-                {
-                    Sort(qr, query.Metadata.OrderBy);
-                }
+               
 
                 if (q.Select == null && q.SelectFunctionBody.FunctionText == null)
                 {
@@ -146,17 +143,17 @@ namespace Raven.Server.Documents.Queries
             }
         }
 
-        private void Sort((List<Match> Matches, GraphQueryPlan QueryPlan) qr, OrderByField[] orderBy)
+        private void Sort(List<Match> matches, OrderByField[] orderBy)
         {
             if (orderBy.Length == 1)
             {
                 var orderByFieldSorter = new GraphQueryOrderByFieldComparer(orderBy.First());
-                qr.Matches.Sort(orderByFieldSorter);
+                matches.Sort(orderByFieldSorter);
                 return;
             }
 
             var orderByMltipleFieldsSorter = new GraphQueryMultipleFieldsComparer(orderBy);
-            qr.Matches.Sort(orderByMltipleFieldsSorter);
+            matches.Sort(orderByMltipleFieldsSorter);
         }
 
 
@@ -168,6 +165,11 @@ namespace Raven.Server.Documents.Queries
             qp.OptimizeQueryPlan(); //TODO: audit optimization
             await qp.Initialize();            
             var matchResults = qp.Execute();
+
+            if (query.Metadata.OrderBy != null)
+            {
+                Sort(matchResults, query.Metadata.OrderBy);
+            }
 
             var filter = q.GraphQuery.Where;
             if (filter != null)
@@ -183,8 +185,18 @@ namespace Raven.Server.Documents.Queries
                             matchResults[i] = default;
                     }
                 }
-            }      
-            return (matchResults.Skip(query.Start).Take(query.PageSize).ToList(), qp);
+            }
+
+            if (query.Start > 0)
+            {
+                matchResults.RemoveRange(0,Math.Min(query.Start, matchResults.Count));
+            }
+
+            if (query.PageSize < matchResults.Count)
+            {
+                matchResults.RemoveRange(query.PageSize, matchResults.Count - query.PageSize);
+            }
+            return (matchResults, qp);
         }
 
         private static void HandleResultsWithoutSelect<TResult>(
