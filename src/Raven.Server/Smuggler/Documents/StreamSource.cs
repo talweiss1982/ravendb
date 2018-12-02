@@ -5,7 +5,9 @@ using System.Threading;
 using Raven.Client;
 using Raven.Client.Documents.Indexes;
 using Raven.Client.Documents.Operations.Attachments;
+using Raven.Client.Documents.Operations.Counters;
 using Raven.Client.Documents.Smuggler;
+using Raven.Client.Properties;
 using Raven.Client.ServerWide;
 using Raven.Client.Util;
 using Raven.Server.Documents;
@@ -45,6 +47,7 @@ namespace Raven.Server.Smuggler.Documents
         private bool _readLegacyEtag;
 
         private Size _totalObjectsRead = new Size(0, SizeUnit.Bytes);
+        private DatabaseItemType _operateOnTypes;
 
         public StreamSource(Stream stream, DocumentsOperationContext context, DocumentDatabase database)
         {
@@ -67,6 +70,7 @@ namespace Raven.Server.Smuggler.Documents
             if (_state.CurrentTokenType != JsonParserToken.StartObject)
                 UnmanagedJsonParserHelper.ThrowInvalidJson("Expected start object, but got " + _state.CurrentTokenType, _peepingTomStream, _parser);
 
+            _operateOnTypes = options.OperateOnTypes;
             buildVersion = ReadBuildVersion();
             _buildVersionType = BuildVersion.Type(buildVersion);
 #pragma warning disable 618
@@ -95,12 +99,12 @@ namespace Raven.Server.Smuggler.Documents
             var dbItemType = GetType(type);
             while (dbItemType == DatabaseItemType.Unknown)
             {
-                var msg = $"You are trying to import items of type '{type}' which is unknown or not supported in 4.0. Ignoring items.";
+                var msg = $"You are trying to import items of type '{type}' which is unknown or not supported in {RavenVersionAttribute.Instance.Version}. Ignoring items.";
                 if (_log.IsOperationsEnabled)
                     _log.Operations(msg);
                 _result.AddWarning(msg);
 
-                SkipArray(onSkipped: null, CancellationToken.None);
+                SkipArray(onSkipped: null, token: CancellationToken.None);
                 type = ReadType();
                 dbItemType = GetType(type);
             }
@@ -123,7 +127,7 @@ namespace Raven.Server.Smuggler.Documents
                     catch (Exception e)
                     {
                         if (_log.IsInfoEnabled)
-                            _log.Info("Wasn't able to import the reivions configuration from smuggler file. Skiping.", e);
+                            _log.Info("Wasn't able to import the revisions configuration from smuggler file. Skipping.", e);
                     }
                 }
 
@@ -137,7 +141,7 @@ namespace Raven.Server.Smuggler.Documents
                     catch (Exception e)
                     {
                         if (_log.IsInfoEnabled)
-                            _log.Info("Wasn't able to import the expiration configuration from smuggler file. Skiping.", e);
+                            _log.Info("Wasn't able to import the expiration configuration from smuggler file. Skipping.", e);
                     }
                 }
 
@@ -151,7 +155,7 @@ namespace Raven.Server.Smuggler.Documents
                             if (ravenConnectionStrings.TryGet(connectionName, out BlittableJsonReaderObject connection) == false)
                             {
                                 if (_log.IsInfoEnabled)
-                                    _log.Info($"Wasn't able to import the RavenDB connection string {connectionName} from smuggler file. Skiping.");
+                                    _log.Info($"Wasn't able to import the RavenDB connection string {connectionName} from smuggler file. Skipping.");
 
                                 continue;
                             }
@@ -164,7 +168,7 @@ namespace Raven.Server.Smuggler.Documents
                     {
                         databaseRecord.RavenConnectionStrings.Clear();
                         if (_log.IsInfoEnabled)
-                            _log.Info("Wasn't able to import the RavenDB connection strings from smuggler file. Skiping.", e);
+                            _log.Info("Wasn't able to import the RavenDB connection strings from smuggler file. Skipping.", e);
                     }
                 }
 
@@ -178,7 +182,7 @@ namespace Raven.Server.Smuggler.Documents
                             if (ravenConnectionStrings.TryGet(connectionName, out BlittableJsonReaderObject connection) == false)
                             {
                                 if (_log.IsInfoEnabled)
-                                    _log.Info($"Wasn't able to import the SQL connection string {connectionName} from smuggler file. Skiping.");
+                                    _log.Info($"Wasn't able to import the SQL connection string {connectionName} from smuggler file. Skipping.");
 
                                 continue;
                             }
@@ -191,7 +195,7 @@ namespace Raven.Server.Smuggler.Documents
                     {
                         databaseRecord.SqlConnectionStrings.Clear();
                         if (_log.IsInfoEnabled)
-                            _log.Info("Wasn't able to import the SQL connection strings from smuggler file. Skiping.", e);
+                            _log.Info("Wasn't able to import the SQL connection strings from smuggler file. Skipping.", e);
                     }
                 }
 
@@ -205,7 +209,7 @@ namespace Raven.Server.Smuggler.Documents
                     catch (Exception e)
                     {
                         if (_log.IsInfoEnabled)
-                            _log.Info("Wasn't able to import the client configuration from smuggler file. Skiping.", e);
+                            _log.Info("Wasn't able to import the client configuration from smuggler file. Skipping.", e);
                     }
                 }
             });
@@ -217,6 +221,11 @@ namespace Raven.Server.Smuggler.Documents
         public IEnumerable<(string key, long index, BlittableJsonReaderObject value)> GetCompareExchangeValues()
         {
             return InternalGetCompareExchangeValues();
+        }
+
+        public IEnumerable<CounterDetail> GetCounterValues()
+        {
+            return InternalGetCounterValues();
         }
 
         private unsafe void SetBuffer(UnmanagedJsonParser parser, LazyStringValue value)
@@ -258,6 +267,35 @@ namespace Raven.Server.Smuggler.Documents
             }
         }
 
+        private IEnumerable<CounterDetail> InternalGetCounterValues()
+        {
+            foreach (var reader in ReadArray())
+            {
+                using (reader)
+                {
+                    if (reader.TryGet(nameof(DocumentItem.CounterItem.DocId), out string docId) == false ||
+                        reader.TryGet(nameof(DocumentItem.CounterItem.Name), out string name) == false ||
+                        reader.TryGet(nameof(DocumentItem.CounterItem.ChangeVector), out string cv) == false ||
+                        reader.TryGet(nameof(DocumentItem.CounterItem.Value), out long value) == false)
+                    {
+                        _result.Counters.ErroredCount++;
+                        _result.AddWarning("Could not read counter entry.");
+
+                        continue;
+                    }
+
+                    yield return new CounterDetail
+                    {
+                        DocumentId = docId,
+                        CounterName = name,
+                        ChangeVector = cv,
+                        TotalValue = value
+                    };
+                }
+            }
+        }
+
+
         public long SkipType(DatabaseItemType type, Action<long> onSkipped, CancellationToken token)
         {
             switch (type)
@@ -273,6 +311,7 @@ namespace Raven.Server.Smuggler.Documents
                 case DatabaseItemType.CompareExchange:
                 case DatabaseItemType.LegacyDocumentDeletions:
                 case DatabaseItemType.LegacyAttachmentDeletions:
+                case DatabaseItemType.Counters:
                     return SkipArray(onSkipped, token);
                 case DatabaseItemType.DatabaseRecord:
                     return SkipObject(onSkipped);
@@ -402,7 +441,7 @@ namespace Raven.Server.Smuggler.Documents
             if (_state.CurrentTokenType != JsonParserToken.StartObject)
                 UnmanagedJsonParserHelper.ThrowInvalidJson("Expected start object, got " + _state.CurrentTokenType, _peepingTomStream, _parser);
 
-            using (var builder = CreateBuilder(_context, null))
+            using (var builder = CreateBuilder(_context))
             {
                 _context.CachedProperties.NewDocument();
                 ReadObject(builder);
@@ -491,7 +530,7 @@ namespace Raven.Server.Smuggler.Documents
             if (_state.CurrentTokenType != JsonParserToken.StartArray)
                 UnmanagedJsonParserHelper.ThrowInvalidJson("Expected start array, got " + _state.CurrentTokenType, _peepingTomStream, _parser);
 
-            var builder = CreateBuilder(_context, null);
+            var builder = CreateBuilder(_context);
             try
             {
                 while (true)
@@ -508,7 +547,7 @@ namespace Raven.Server.Smuggler.Documents
                         if (_context != oldContext)
                         {
                             builder.Dispose();
-                            builder = CreateBuilder(context, null);
+                            builder = CreateBuilder(context);
                         }
                     }
                     builder.Renew("import/object", BlittableJsonDocumentBuilder.UsageMode.ToDisk);
@@ -558,8 +597,7 @@ namespace Raven.Server.Smuggler.Documents
                 UnmanagedJsonParserHelper.ThrowInvalidJson("Expected start array, but got " + _state.CurrentTokenType, _peepingTomStream, _parser);
 
             var context = _context;
-            var modifier = new BlittableMetadataModifier(context);
-            var builder = CreateBuilder(context, modifier);
+            var builder = CreateBuilder(context, new BlittableMetadataModifier(context));
             try
             {
                 while (true)
@@ -577,7 +615,7 @@ namespace Raven.Server.Smuggler.Documents
                         if (oldContext != context)
                         {
                             builder.Dispose();
-                            builder = CreateBuilder(context, modifier);
+                            builder = CreateBuilder(context, new BlittableMetadataModifier(context));
                         }
                     }
                     builder.Renew("import/object", BlittableJsonDocumentBuilder.UsageMode.ToDisk);
@@ -642,12 +680,12 @@ namespace Raven.Server.Smuggler.Documents
                 ["ContentType"] = string.Empty,
                 ["Size"] = details.Size,
             };
-            var attachmets = new DynamicJsonArray();
-            attachmets.Add(attachment);
+            var attachments = new DynamicJsonArray();
+            attachments.Add(attachment);
             var metadata = new DynamicJsonValue
             {
                 [Constants.Documents.Metadata.Collection] = "@files",
-                [Constants.Documents.Metadata.Attachments] = attachmets,
+                [Constants.Documents.Metadata.Attachments] = attachments,
                 [Constants.Documents.Metadata.LegacyAttachmentsMetadata] = details.Metadata
             };
             var djv = new DynamicJsonValue
@@ -669,11 +707,7 @@ namespace Raven.Server.Smuggler.Documents
 
             var context = _context;
             var legacyImport = _buildVersionType == BuildVersionType.V3;
-            var modifier = new BlittableMetadataModifier(context)
-            {
-                ReadFirstEtagOfLegacyRevision = legacyImport,
-                ReadLegacyEtag = _readLegacyEtag
-            };
+            var modifier = new BlittableMetadataModifier(context, legacyImport, _readLegacyEtag, _operateOnTypes);
             var builder = CreateBuilder(context, modifier);
             try
             {
@@ -693,6 +727,7 @@ namespace Raven.Server.Smuggler.Documents
                         if (oldContext != context)
                         {
                             builder.Dispose();
+                            modifier = new BlittableMetadataModifier(context, legacyImport, _readLegacyEtag, _operateOnTypes);
                             builder = CreateBuilder(context, modifier);
                         }
                     }
@@ -781,7 +816,7 @@ namespace Raven.Server.Smuggler.Documents
                 UnmanagedJsonParserHelper.ThrowInvalidJson("Expected start array, but got " + _state.CurrentTokenType, _peepingTomStream, _parser);
 
             var context = _context;
-            var builder = CreateBuilder(context, null);
+            var builder = CreateBuilder(context);
             try
             {
                 while (true)
@@ -799,7 +834,7 @@ namespace Raven.Server.Smuggler.Documents
                         if (oldContext != context)
                         {
                             builder.Dispose();
-                            builder = CreateBuilder(context, null);
+                            builder = CreateBuilder(context);
                         }
                     }
                     builder.Renew("import/object", BlittableJsonDocumentBuilder.UsageMode.ToDisk);
@@ -833,7 +868,7 @@ namespace Raven.Server.Smuggler.Documents
                     }
                     else
                     {
-                        var msg = "Ignoring an invalied tombstone which you try to import. " + data;
+                        var msg = "Ignoring an invalid tombstone which you try to import. " + data;
                         if (_log.IsOperationsEnabled)
                             _log.Operations(msg);
 
@@ -857,7 +892,7 @@ namespace Raven.Server.Smuggler.Documents
                 UnmanagedJsonParserHelper.ThrowInvalidJson("Expected start array, but got " + _state.CurrentTokenType, _peepingTomStream, _parser);
 
             var context = _context;
-            var builder = CreateBuilder(context, null);
+            var builder = CreateBuilder(context);
             try
             {
                 while (true)
@@ -875,7 +910,7 @@ namespace Raven.Server.Smuggler.Documents
                         if (oldContext != context)
                         {
                             builder.Dispose();
-                            builder = CreateBuilder(context, null);
+                            builder = CreateBuilder(context);
                         }
                     }
                     builder.Renew("import/object", BlittableJsonDocumentBuilder.UsageMode.ToDisk);
@@ -903,7 +938,7 @@ namespace Raven.Server.Smuggler.Documents
                     }
                     else
                     {
-                        var msg = "Ignoring an invalied conflict which you try to import. " + data;
+                        var msg = "Ignoring an invalid conflict which you try to import. " + data;
                         if (_log.IsOperationsEnabled)
                             _log.Operations(msg);
 
@@ -974,7 +1009,7 @@ namespace Raven.Server.Smuggler.Documents
             attachment.Stream.Flush();
             var lazyHash = context.GetLazyString(hash);
             attachment.Base64HashDispose = Slice.External(context.Allocator, lazyHash, out attachment.Base64Hash);
-            var tag = $"{DummyDocumentPrefix}{key}{RecordSeperator}d{RecordSeperator}{key}{RecordSeperator}{hash}{RecordSeperator}";
+            var tag = $"{DummyDocumentPrefix}{key}{RecordSeparator}d{RecordSeparator}{key}{RecordSeparator}{hash}{RecordSeparator}";
             var lazyTag = context.GetLazyString(tag);
             attachment.TagDispose = Slice.External(context.Allocator, lazyTag, out attachment.Tag);
             var id = GetLegacyAttachmentId(key);
@@ -1002,7 +1037,7 @@ namespace Raven.Server.Smuggler.Documents
             public BlittableJsonReaderObject Metadata;
         }
 
-        private const char RecordSeperator = (char)SpecialChars.RecordSeparator;
+        private const char RecordSeparator = (char)SpecialChars.RecordSeparator;
         private const string DummyDocumentPrefix = "files/";
 
         public unsafe void ProcessAttachmentStream(DocumentsOperationContext context, BlittableJsonReaderObject data, ref DocumentItem.AttachmentStream attachment)
@@ -1044,6 +1079,12 @@ namespace Raven.Server.Smuggler.Documents
                 modifier: modifier);
         }
 
+        private BlittableJsonDocumentBuilder CreateBuilder(JsonOperationContext context)
+        {
+            return new BlittableJsonDocumentBuilder(context,
+                BlittableJsonDocumentBuilder.UsageMode.ToDisk, "import/object", _parser, _state);
+        }
+
         private DatabaseItemType GetType(string type)
         {
             if (type == null)
@@ -1074,6 +1115,9 @@ namespace Raven.Server.Smuggler.Documents
             if (type.Equals(nameof(DatabaseItemType.CompareExchange), StringComparison.OrdinalIgnoreCase) ||
                 type.Equals("CmpXchg", StringComparison.OrdinalIgnoreCase)) //support the old name
                 return DatabaseItemType.CompareExchange;
+
+            if (type.Equals(nameof(DatabaseItemType.Counters), StringComparison.OrdinalIgnoreCase))
+                return DatabaseItemType.Counters;
 
             if (type.Equals("Attachments", StringComparison.OrdinalIgnoreCase))
                 return DatabaseItemType.LegacyAttachments;
