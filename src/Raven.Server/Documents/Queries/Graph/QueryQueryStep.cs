@@ -27,7 +27,7 @@ namespace Raven.Server.Documents.Queries.Graph
 
 
         private int _index = -1;
-        private List<Match> _results = new List<Match>();
+        private GraphQueryResults _results = new GraphQueryResults();
         private Dictionary<string, Match> _resultsById = new Dictionary<string, Match>(StringComparer.OrdinalIgnoreCase);
         private GraphQueryPlan _graphQueryPlan;
 
@@ -89,7 +89,7 @@ namespace Raven.Server.Documents.Queries.Graph
 
         public bool CollectIntermediateResults { get; set; }
 
-        public List<Match> IntermediateResults => CollectIntermediateResults ? _results : new List<Match>();
+        public List<Match> IntermediateResults => CollectIntermediateResults ? _results.Results : new List<Match>();
 
         public IGraphQueryStep Clone()
         {
@@ -241,6 +241,14 @@ namespace Raven.Server.Documents.Queries.Graph
                 clone.Set(_parent.GetOutputAlias(), src.GetResult(alias));
                 _temp.Add(clone);
             }
+        }
+
+        public void CreateIdenticalQueryWithDiffrentAlias(StringSegment alias)
+        {
+            var clone = Clone() as QueryQueryStep;
+            clone._alias = alias;
+            clone._aliases = new HashSet<string>{_alias.ToString()};
+            clone._results = _results;
         }
     }
 }

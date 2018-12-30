@@ -69,6 +69,8 @@ namespace Raven.Server.Documents.Queries.Graph
             await RootQueryStep.Initialize();
         }
 
+        private Dictionary<string, QueryQueryStep> _identicalQuerySteps = new Dictionary<string, QueryQueryStep>();
+
         private IGraphQueryStep BuildQueryPlanForBinaryExpression(BinaryExpression be)
         {
             bool negated = false;
@@ -198,10 +200,16 @@ namespace Raven.Server.Documents.Queries.Graph
             // TODO: we can tell at this point if it is a collection query or not,
             // TODO: in the future, we want to build a diffrent step for collection queries in the future.        
             var queryMetadata = new QueryMetadata(query, _query.QueryParameters, 0);
-            return new QueryQueryStep(_database.QueryRunner, alias, query, queryMetadata, _query.QueryParameters, _context, _resultEtag, this, _token)
+            var queryStep = new QueryQueryStep(_database.QueryRunner, alias, query, queryMetadata, _query.QueryParameters, _context, _resultEtag, this, _token)
             {
                 CollectIntermediateResults = CollectIntermediateResults
             };
+            var key = queryStep.Query.ToString();
+            if(_identicalQuerySteps.TryGetValue(key, out var identical))
+            {
+
+            }
+            return queryStep;
         }
 
         public void OptimizeQueryPlan()
