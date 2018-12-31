@@ -27,25 +27,41 @@ namespace Raven.Server.Documents.Queries.Graph
         private bool _initialized;
         private string _aliasStr;
         private string _originalAlias;
+        private List<GraphQueryRunner.Match> _results = new List<GraphQueryRunner.Match>();
+        private Dictionary<string, GraphQueryRunner.Match> _resultsById = new Dictionary<string, GraphQueryRunner.Match>(StringComparer.OrdinalIgnoreCase);
         private HashSet<string> _allAliases;
+        private int _index = -1;
 
         public ValueTask Initialize()
         {
             if (_forwardedStep.IsInitialized == false)
             {
-                _forwardedStep.Initialize();
+                _forwardedStep.Initialize();                
             }
-            else
-            {
-                //TODO:Need to verify that we won't step on our own toes when optimizing a recursive step
-                _forwardedStep.Reset();
-            }
+            //We expect the _forwardedStep to be initialized but not iterated here
+            //TODO: this is just an ugly code to proof that this is needed this should be replaced with clone and rename _results
 
+            var qqs = _forwardedStep as QueryQueryStep;
+            qqs.Reset();
+
+            while (qqs.GetNext(out var m))
+            {
+                var cloned = m.CloneAndReplaceAlias(_originalAlias, _aliasStr);
+                _results.Add(cloned);
+                foreach (var doc in cloned.GetAllResults())
+                {
+                    if (doc.Id == null)
+                        continue;
+                    _resultsById[doc.Id] = cloned;
+                }
+            }
+            qqs.Reset();
+            _index = 0;
             _initialized = true;
             return default;
         }
 
-        HashSet<string> IGraphQueryStep.GetAllAliases()
+        public HashSet<string> GetAllAliases()
         {
             if (_allAliases != null)
                 return _allAliases;
@@ -70,59 +86,54 @@ namespace Raven.Server.Documents.Queries.Graph
 
         public bool GetNext(out GraphQueryRunner.Match match)
         {
-            if (_forwardedStep.GetNext(out GraphQueryRunner.Match m) == false)
+            if (_index >= _results.Count)
             {
                 match = default;
                 return false;
             }
-            //TODO:We might need to clone here so not to dirtify the match
-            m.ReplaceAlias(_originalAlias, _aliasStr);
-            match = m;
+            match = _results[_index++];
+
             return true;
         }
 
+        private List<GraphQueryRunner.Match> _temp = new List<GraphQueryRunner.Match>();
         public List<GraphQueryRunner.Match> GetById(string id)
         {
-            var res = _forwardedStep.GetById(id);
-            foreach (var match in res)
-            {
-                match.ReplaceAlias(_originalAlias, _aliasStr);
-            }
+            if (_results.Count != 0 && _resultsById.Count == 0)// only reason is that we are projecting non documents here
+                throw new InvalidOperationException("Target vertices in a pattern match that originate from map/reduce WITH clause are not allowed. (pattern match has multiple statements in the form of (a)-[:edge]->(b) ==> in such pattern, 'b' must not originate from map/reduce index query)");
 
-            return res;
+            _temp.Clear();
+            if (_resultsById.TryGetValue(id, out var match))
+                _temp.Add(match);
+            return _temp;
         }
 
         public void Analyze(GraphQueryRunner.Match match, GraphQueryRunner.GraphDebugInfo graphDebugInfo)
         {
-            //TODO:Verify this yields the expected result
-            match.ReplaceAlias(_originalAlias, _aliasStr);
-            _forwardedStep.Analyze(match, graphDebugInfo);
+            //This will only work for QueryQuerySteps
+            var result = match.GetResult(_aliasStr);
+            if (result == null)
+                return;
+
+            if (result is Document d && d.Id != null)
+            {
+                graphDebugInfo.AddNode(d.Id.ToString(), d);
+            }
+            else
+            {
+                graphDebugInfo.AddNode(null, result);
+            }
         }
 
         public bool IsEmpty()
         {
-            return _forwardedStep.IsEmpty();
+            return _results.Count == 0;
         }
 
         public bool CollectIntermediateResults { get; set; }
 
-        private List<GraphQueryRunner.Match> _intermediateResults;
-        public List<GraphQueryRunner.Match> IntermediateResults
-        {
-            get
-            {
-                if (_intermediateResults != null)
-                    return _intermediateResults;
-                //TODO: here we for sure need to clone the match
-                var resList = _forwardedStep.IntermediateResults;
-                foreach (var res in resList)
-                {
-                    res.ReplaceAlias(_originalAlias, _aliasStr);
-                }
 
-                return resList;
-            }
-        }
+        public List<GraphQueryRunner.Match> IntermediateResults => _results;
         public IGraphQueryStep Clone()
         {
             var res = new ForwardedQueryStep(_forwardedStep.Clone(), _aliasStr);
@@ -131,13 +142,60 @@ namespace Raven.Server.Documents.Queries.Graph
 
         public ISingleGraphStep GetSingleGraphStepExecution()
         {
-            return _forwardedStep.GetSingleGraphStepExecution();
+            return new ForwardedQuerySingleStep(this);
         }
 
         public bool IsInitialized => _initialized;
         public void Reset()
         {
-            _forwardedStep.Reset();
+            _index = 0;
+        }
+
+        private class ForwardedQuerySingleStep : ISingleGraphStep
+        {
+            private ForwardedQueryStep _parent;
+            private List<GraphQueryRunner.Match> _temp = new List<GraphQueryRunner.Match>(1);
+
+            public ForwardedQuerySingleStep(ForwardedQueryStep queryQueryStep)
+            {
+                _parent = queryQueryStep;
+            }
+
+
+            public void AddAliases(HashSet<string> aliases)
+            {
+                aliases.UnionWith(_parent.GetAllAliases());
+            }
+
+            public void SetPrev(IGraphQueryStep prev)
+            {
+            }
+
+            public bool GetAndClearResults(List<GraphQueryRunner.Match> matches)
+            {
+                if (_temp.Count == 0)
+                    return false;
+
+                matches.AddRange(_temp);
+
+                _temp.Clear();
+
+                return true;
+            }
+
+            public ValueTask Initialize()
+            {
+                return _parent.Initialize();
+            }
+
+            public void Run(GraphQueryRunner.Match src, string alias)
+            {
+                // here we already get the right match, and we do nothing with it.
+                var clone = new GraphQueryRunner.Match(src);
+                clone.Remove(alias);
+                clone.Set(_parent.GetOutputAlias(), src.GetResult(alias));
+                _temp.Add(clone);
+            }
         }
     }
 }

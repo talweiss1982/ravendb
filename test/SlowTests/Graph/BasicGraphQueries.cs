@@ -473,7 +473,7 @@ select e.FirstName as Employee, n.m as MiddleManagement, boss.FirstName as Boss
             using (var store = GetDocumentStore())
             {
                 SetupHobbitAncestry(store);
-
+                WaitForUserToContinueTheTest(store);
                 using (var session = store.OpenSession())
                 {
                     var results = session.Advanced.RawQuery<Tragedy>(@"

@@ -113,7 +113,7 @@ namespace Raven.Server.Documents.Queries.Graph
                 return new RecursionQueryStep(rqs, left, steps);
             }
 
-            return new RecursionQueryStep(left, rqs);
+            return rqs;
         }
     }
 }

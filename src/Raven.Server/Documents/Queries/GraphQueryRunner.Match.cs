@@ -283,15 +283,32 @@ namespace Raven.Server.Documents.Queries
                 throw new InvalidOperationException("Cannot return single result when there are no results");
             }
 
-            public void ReplaceAlias(string originalAlias, string aliasStr)
+            internal IEnumerable<Document> GetAllResults()
             {
-                if(originalAlias == aliasStr)
-                    return;
-
-                if (_inner.Remove(originalAlias, out var obj))
+                foreach (var item in _inner)
                 {
-                    _inner.Add(aliasStr, obj);
+                    if (item.Key.StartsWith("_"))
+                        continue;
+
+                    if (item.Value is Document d)
+                    {
+                        yield return d;
+                    }
                 }
+            }
+
+            public Match CloneAndReplaceAlias(string originalAlias, string aliasStr)
+            {
+                var match = new Match(this);
+                if(originalAlias == aliasStr)
+                    return match;
+
+                if (match._inner.Remove(originalAlias, out var obj))
+                {
+                    match._inner.Add(aliasStr, obj);
+                }
+
+                return match;
             }
         }
     }

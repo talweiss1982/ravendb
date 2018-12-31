@@ -201,7 +201,7 @@ namespace FastTests.Graph
                 using (var session = store.OpenSession())
                 {
                     var result = session.Advanced.RawQuery<JObject>(@"match (Entities as e)-[References as r]->(Entities as e2)").ToList();
-
+                    WaitForUserToContinueTheTest(store);
                     Assert.Equal(3, result.Count);
                     Assert.Contains(result,
                         item => item["e"].Value<string>("Name") == "A" &&

@@ -210,7 +210,7 @@ namespace Raven.Server.Documents.Queries.Graph
             public QuerySingleStep(QueryQueryStep queryQueryStep)
             {
                 _parent = queryQueryStep;
-}
+            }
 
 
             public void AddAliases(HashSet<string> aliases)
