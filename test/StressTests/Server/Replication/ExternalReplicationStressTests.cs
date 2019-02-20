@@ -13,9 +13,10 @@ namespace StressTests.Server.Replication
         [Fact64Bit]
         public void ExternalReplicationShouldWorkWithSmallTimeoutStress()
         {
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 10_000; i++)
             {
-                Parallel.For(0, 10, RavenTestHelper.DefaultParallelOptions, _ =>
+                Console.WriteLine("iteration "+i);
+                Parallel.For(0, 5, RavenTestHelper.DefaultParallelOptions, _ =>
                 {
                     using (var test = new ExternalReplicationTests())
                     {

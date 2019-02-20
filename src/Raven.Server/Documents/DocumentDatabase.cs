@@ -143,6 +143,7 @@ namespace Raven.Server.Documents
                 Operations = new Operations.Operations(Name, ConfigurationStorage.OperationsStorage, NotificationCenter, Changes);
                 DatabaseInfoCache = serverStore.DatabaseInfoCache;
                 RachisLogIndexNotifications = new RachisLogIndexNotifications(DatabaseShutdown);
+                _hasClusterTransaction = new AsyncManualResetEvent(DatabaseShutdown);
                 CatastrophicFailureNotification = new CatastrophicFailureNotification((environmentId, environmentPath, e) =>
                 {
                     serverStore.DatabasesLandlord.CatastrophicFailureHandler.Execute(name, e, environmentId, environmentPath);
@@ -346,10 +347,10 @@ namespace Raven.Server.Documents
 
             public void ClusterTransaction()
             {
-                Task.Factory.StartNew(ExecuteClusterTransaction, Cts);
+                Task.Run(ExecuteClusterTransaction, Cts);
             }
 
-            private async Task ExecuteClusterTransaction(object o)
+            private async Task ExecuteClusterTransaction()
             {
                 try
                 {
@@ -357,7 +358,10 @@ namespace Raven.Server.Documents
                     await dbTask; //the task might not be completed yet even if it is in the cache
                     if (dbTask.IsCompletedSuccessfully)
                     {
-                        await dbTask.Result.ExecuteClusterTransactionTask();
+                        if (await dbTask.Result.ExecuteClusterTransactionTask().WaitWithTimeout(TimeSpan.FromMinutes(3)) == false)
+                        {
+                            Console.WriteLine("MothaFucker!!");
+                        }
                     }
                 }
                 catch (OperationCanceledException)
@@ -426,7 +430,7 @@ namespace Raven.Server.Documents
             return new DatabaseDisabledException("The database " + Name + " is shutting down", e);
         }
 
-        private readonly AsyncManualResetEvent _hasClusterTransaction = new AsyncManualResetEvent();
+        private readonly AsyncManualResetEvent _hasClusterTransaction;
 
         public void NotifyOnPendingClusterTransaction()
         {
@@ -437,51 +441,67 @@ namespace Raven.Server.Documents
         private long _lastCompletedClusterTransaction;
         public long LastCompletedClusterTransaction => _lastCompletedClusterTransaction;
         private int _clusterTransactionDelayOnFailure = 1000;
-
+        public string lastStep = "start";
         private async Task ExecuteClusterTransactionTask()
         {
             while (DatabaseShutdown.IsCancellationRequested == false)
             {
-                await _hasClusterTransaction.WaitAsync(DatabaseShutdown);
+                lastStep = "in while";
+                await _hasClusterTransaction.WaitAsync();
+                lastStep = "after cluster wait";
                 if (DatabaseShutdown.IsCancellationRequested)
                     return;
-
+                lastStep = "before reset";
                 _hasClusterTransaction.Reset();
-
+                lastStep = "after reset";
                 using (ServerStore.ContextPool.AllocateOperationContext(out TransactionOperationContext context))
                 using (context.OpenReadTransaction())
                 {
                     try
                     {
+                        lastStep = "after opening read transaction";
                         var batch = new List<ClusterTransactionCommand.SingleClusterDatabaseCommand>(
                             ClusterTransactionCommand.ReadCommandsBatch(context, Name, fromCount: _nextClusterCommand, take: 256));
-
+                        lastStep = "after creating batch";
                         if (batch.Count == 0)
                         {
                             continue;
                         }
 
                         var mergedCommands = new BatchHandler.ClusterTransactionMergedCommand(this, batch);
+                        lastStep = "after merged command";
                         try
                         {
                             await TxMerger.Enqueue(mergedCommands).WithCancellation(DatabaseShutdown);
+                            lastStep = "after enqueue into the merger";
                         }
                         catch (Exception e)
                         {
+                            lastStep = "in exception " + e;
                             if (_logger.IsInfoEnabled)
                             {
                                 _logger.Info($"Failed to execute cluster transaction batch (count: {batch.Count}), will retry them one-by-one.", e);
                             }
-                            await ExecuteClusterTransactionOneByOne(batch);
+                            await ExecuteClusterTransactionOneByOne(batch).WithCancellation(DatabaseShutdown);
+                            lastStep = "after ExecuteClusterTransactionOneByOne";
                             continue;
                         }
+                        lastStep = "running commands one by one total of "+ batch.Count;
+                        var i = 0;
                         foreach (var command in batch)
                         {
+                            if (DatabaseShutdown.IsCancellationRequested)
+                                return;
                             OnClusterTransactionCompletion(command, mergedCommands);
+                            lastStep = $"ran OnClusterTransactionCompletion for command #{i++}/{batch.Count}";
                         }
                     }
                     catch (Exception e)
                     {
+                        lastStep = "got exception 2 " + e;
+                        if (DatabaseShutdown.IsCancellationRequested)
+                            return;
+
                         if (_logger.IsInfoEnabled)
                         {
                             _logger.Info($"Can't perform cluster transaction on database '{Name}'.", e);

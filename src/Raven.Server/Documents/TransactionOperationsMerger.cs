@@ -115,6 +115,8 @@ namespace Raven.Server.Documents
         /// </summary>
         public async Task Enqueue(MergedTransactionCommand cmd)
         {
+            if(_parent.DatabaseShutdown.IsCancellationRequested)
+                throw new Exception("WTF");
             _edi?.Throw();
             _operations.Enqueue(cmd);
             _waitHandle.Set();

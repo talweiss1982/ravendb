@@ -49,38 +49,11 @@ namespace Tryouts
 
         public static void Main(string[] args)
         {
-            var mre = new ManualResetEventSlim();
-           
-            var t2 = Task.Run(() =>
+            using (var test = new StressTests.Server.Replication.ExternalReplicationStressTests())
             {
-                using (var ravenProcess = CreateServerProcess())
-                {                    
-                    ravenProcess.OutputDataReceived += RavenProcess_OutputDataReceived;
-                    ravenProcess.ErrorDataReceived += RavenProcess_ErrorDataReceived;
-                    ravenProcess.EnableRaisingEvents = true;
-                    ravenProcess.Start();
-
-                    ravenProcess.BeginOutputReadLine();
-                    ravenProcess.BeginErrorReadLine();
-
-                    ravenProcess.StandardInput.WriteLine("DELIMITER:ContinuePrinting");
-                    ravenProcess.StandardInput.WriteLine("DELIMITER:ReadLine");
-                    //ravenProcess.StandardInput.WriteLine("ReadLine");
-                    mre.Wait();
-                    ravenProcess.Kill();
-                }
-
-                Console.WriteLine("WTF?");
-            });
-            GC.SuppressFinalize(t2);
-            AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) => mre.Set();
+                test.ExternalReplicationShouldWorkWithSmallTimeoutStress();
+            }
             
-
-            Console.WriteLine("Hello!!");            
-            Thread.Sleep(15000);
-            Console.WriteLine("Bye!!");
-            mre.Set();
-            Task.WaitAll(t2);
         }
 
         private static void RavenProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
