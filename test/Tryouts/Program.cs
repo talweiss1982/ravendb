@@ -25,9 +25,9 @@ namespace Tryouts
         public static async Task Main(string[] args)
         {
             
-                using (var test = new SlowTests.Authentication.AuthenticationClusterTests())
+                using (var test = new StressTests.Issues.RavenDB_13295())
                 {
-                    await test.CanReplaceClusterCertWithExtensionPoint();
+                    await test.CanPutAndReadClusterTx();
                 }
 
                 
