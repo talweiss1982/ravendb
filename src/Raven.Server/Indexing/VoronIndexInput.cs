@@ -68,6 +68,21 @@ namespace Raven.Server.Indexing
             return clone;
         }
 
+        public override int ReadVInt(IState state)
+        {
+            var s = state as VoronState;
+            if (s == null)
+            {
+                ThrowStateNullException();
+                return byte.MinValue;
+            }
+
+            ThrowIfDisposed(s);
+
+            _stream.UpdateCurrentTransaction(s.Transaction);
+            return _stream.ReadVInt();
+        }
+
         public override byte ReadByte(IState s)
         {
             var state = s as VoronState;

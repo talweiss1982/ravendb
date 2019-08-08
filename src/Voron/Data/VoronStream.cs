@@ -123,6 +123,65 @@ namespace Voron.Data
 
             return _lastPage.DataPointer[_positions[_index]++];
         }
+		
+        public int ReadVInt()
+        {
+            int i = 0;
+            int shift = 0;
+
+            do
+            {
+                int pos = _positions[_index];
+                var chunk = _chunksDetails[_index];
+
+                if (pos == chunk.ChunkSize)
+                {
+                    //End of last chunk
+                    if (_index == _chunksDetails.Length - 1)
+                    {
+                        //We had a valid number at the end of the last chunk
+                        if (shift > 0)
+                            return i;
+                        return -1;
+                    }
+
+                    _index++;
+                    chunk = _chunksDetails[_index];
+
+                    if (chunk.ChunkSize == 0)
+                    {
+                        //We had a valid number at the end of the last chunk
+                        if (shift > 0)
+                            return i;
+                        return -1;
+                    }
+                }
+
+                //Advance to next chunk if needed
+                if (!_lastPage.IsValid || _lastPage.PageNumber != chunk.PageNumber)
+                {
+                    _lastPage = _llt.GetPage(chunk.PageNumber);
+                }
+
+                byte b = 0;
+                do
+                {
+                    b = _lastPage.DataPointer[_positions[_index]++];
+                    i |= (b & 0x7F) << shift;
+                    shift += 7;
+                } while ((b & 0x80) != 0 && _positions[_index] < chunk.ChunkSize);
+
+                if ((b & 0x80) == 0)
+                {
+                    return i;
+                }
+                //The max shift is 4*7=28 since we can have 5 bytes at most and we don't shift the first byte
+                //This could be while(true) but in case of corruption this might run forever so this is a precaution 
+            } while (shift <= 28 );
+            
+            //This shouldn't happen, we had over 5 bytes with MSB turned-on
+            return -1;
+        }
 
         public override int Read(byte[] buffer, int offset, int count)
         {
