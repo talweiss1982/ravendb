@@ -72,6 +72,8 @@ namespace SlowTests.Issues
                     Code = sorterCode
                 }));
 
+                WaitForUserToContinueTheTest(store);
+
                 // checking if we can send again same sorter
                 store.Maintenance.Send(new PutSortersOperation(new SorterDefinition
                 {
