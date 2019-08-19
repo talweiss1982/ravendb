@@ -18,35 +18,27 @@ namespace SlowTests.Issues
         public void CanUseJsComparer()
         {
             List<BlittableJsonReaderObject> points = null;
-            try
-            {
-                using (var db = CreateDocumentDatabase())
-                using (db.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext ctx))
-                {
-                    points = new List<BlittableJsonReaderObject>();
-                    for (int i = 0; i < 10; i++)
-                    {
-                        points.Add(ctx.ReadObject(Point.GenerateNew(), "RavenDB_13441"));
-                    }
 
-                    var script = @"
-                        function distance(x){
-                            return Math.sqrt(Math.pow(x.X, 2) + Math.pow(x.Y, 2))
-                        }
-                        function compare(x, y){
-                            return distance(x) - distance(y)
-                        }
-";
-                    points.Sort(new JsComparator(db, script, ctx));
-                }
-            }
-            finally
+            using (var db = CreateDocumentDatabase())
+            using (db.DocumentsStorage.ContextPool.AllocateOperationContext(out DocumentsOperationContext ctx))
             {
-                foreach (var b in points?? Enumerable.Empty<BlittableJsonReaderObject>())
+                points = new List<BlittableJsonReaderObject>();
+                for (int i = 0; i < 10; i++)
                 {
-                    b.Dispose();
+                    points.Add(ctx.ReadObject(Point.GenerateNew(), "RavenDB_13441"));
                 }
-            }
+
+                var script = @"
+                    function distance(x){
+                        return Math.sqrt(Math.pow(x.X, 2) + Math.pow(x.Y, 2));
+                    }
+                    function compare(x, y){
+                        return distance(x) - distance(y)
+                    }
+";
+                points.Sort(new JsComparator(db, script, ctx));
+                }
+
         }
 
         private class Point

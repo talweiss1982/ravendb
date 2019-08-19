@@ -39,7 +39,7 @@ namespace Raven.Server.Documents.Patch
         }
 
         public bool? BooleanValue => _instance.IsBoolean() ? _instance.AsBoolean() : (bool?)null;
-
+        public double? NumericValue => _instance.IsNumber() ? _instance.AsNumber() : (double?)null;
         public bool IsNull => _instance == null || _instance.IsNull() || _instance.IsUndefined();
         public string StringValue => _instance.IsString() ? _instance.AsString() : null;
         public JsValue RawJsValue => _instance;

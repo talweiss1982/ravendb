@@ -79,6 +79,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sparrow.Server", "src\Sparr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Raven.Pal", "src\Raven.Pal\Raven.Pal.vcxproj", "{01D4353F-2BE9-4D98-B890-FA8364FFDEF1}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Jint", "..\..\jint\Jint\Jint.csproj", "{7F96B734-9741-4412-B894-B5AA95C42B08}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -648,6 +650,24 @@ Global
 		{01D4353F-2BE9-4D98-B890-FA8364FFDEF1}.Validate|x64.Build.0 = Release|x64
 		{01D4353F-2BE9-4D98-B890-FA8364FFDEF1}.Validate|x86.ActiveCfg = Release|Win32
 		{01D4353F-2BE9-4D98-B890-FA8364FFDEF1}.Validate|x86.Build.0 = Release|Win32
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Debug|x64.Build.0 = Debug|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Debug|x86.Build.0 = Debug|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Release|x64.ActiveCfg = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Release|x64.Build.0 = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Release|x86.ActiveCfg = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Release|x86.Build.0 = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Validate|Any CPU.ActiveCfg = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Validate|Any CPU.Build.0 = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Validate|x64.ActiveCfg = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Validate|x64.Build.0 = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Validate|x86.ActiveCfg = Release|Any CPU
+		{7F96B734-9741-4412-B894-B5AA95C42B08}.Validate|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
